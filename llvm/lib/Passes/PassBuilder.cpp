@@ -214,6 +214,7 @@
 #include "llvm/Transforms/Scalar/LoopInstSimplify.h"
 #include "llvm/Transforms/Scalar/LoopInterchange.h"
 #include "llvm/Transforms/Scalar/LoopLoadElimination.h"
+#include "llvm/Transforms/Scalar/LoopOptTutorial.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Scalar/LoopPredication.h"
 #include "llvm/Transforms/Scalar/LoopReroll.h"
