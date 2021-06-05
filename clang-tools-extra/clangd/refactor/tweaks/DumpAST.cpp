@@ -47,7 +47,7 @@ public:
         llvm::formatv("Dump {0} AST", Node->getNodeKind().asStringRef()));
   }
   llvm::StringLiteral kind() const override { return CodeAction::INFO_KIND; }
-  bool hidden() const override { return true; }
+  bool hidden() const override { return false; }
 
 private:
   static bool dumpable(const DynTypedNode &N) {
@@ -93,7 +93,7 @@ public:
   }
   std::string title() const override { return "Show selection tree"; }
   llvm::StringLiteral kind() const override { return CodeAction::INFO_KIND; }
-  bool hidden() const override { return true; }
+  bool hidden() const override { return false; }
 };
 REGISTER_TWEAK(ShowSelectionTree)
 
@@ -159,7 +159,7 @@ public:
   //  - triggering is too broad (e.g. triggers on comments within a class)
   //  - showMessage has inconsistent UX (e.g. newlines are stripped in VSCode)
   //  - the output itself is a bit hard to decipher.
-  bool hidden() const override { return true; }
+  bool hidden() const override { return false; }
 
 private:
   const RecordDecl *Record = nullptr;

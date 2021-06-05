@@ -38,7 +38,7 @@ public:
   llvm::StringLiteral kind() const override {
     return CodeAction::REFACTOR_KIND;
   }
-  bool hidden() const override { return true; }
+  bool hidden() const override { return false; }
 
 private:
   const IfStmt *If = nullptr;
