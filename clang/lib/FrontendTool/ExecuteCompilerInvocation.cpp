@@ -66,20 +66,12 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
     return std::make_unique<DumpCompilerOptionsAction>();
   case DumpRawTokens:          return std::make_unique<DumpRawTokensAction>();
   case DumpTokens:             return std::make_unique<DumpTokensAction>();
-<<<<<<< HEAD
   case EmitAssembly:
     return std::make_unique<EmitAssemblyAction>();
   case EmitBC:
     return std::make_unique<EmitBCAction>();
-||||||| parent of 40264e3181e6 ([CIR] Implement cc1 support for a CIR pipeline)
-  case EmitAssembly:           return std::make_unique<EmitAssemblyAction>();
-  case EmitBC:                 return std::make_unique<EmitBCAction>();
-=======
-  case EmitAssembly:           return std::make_unique<EmitAssemblyAction>();
-  case EmitBC:                 return std::make_unique<EmitBCAction>();
   case EmitCIR:                return std::make_unique<EmitCIRAction>();
   case EmitCIROnly:            return std::make_unique<EmitCIROnlyAction>();
->>>>>>> 40264e3181e6 ([CIR] Implement cc1 support for a CIR pipeline)
   case EmitHTML:               return std::make_unique<HTMLPrintAction>();
   case EmitLLVM: {
     return std::make_unique<EmitLLVMAction>();

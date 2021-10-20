@@ -3032,9 +3032,6 @@ def flimited_precision_EQ : Joined<["-"], "flimited-precision=">, Group<f_Group>
 def fapple_link_rtlib : Flag<["-"], "fapple-link-rtlib">, Group<f_Group>,
   HelpText<"Force linking the clang builtins runtime library">;
 
-<<<<<<< HEAD
-||||||| parent of 40264e3181e6 ([CIR] Implement cc1 support for a CIR pipeline)
-=======
 /// ClangIR-specific options - BEGIN
 defm clangir : BoolFOption<"clangir",
   FrontendOpts<"UseClangIRPipeline">, DefaultFalse,
@@ -3051,8 +3048,6 @@ defm cir_warnings : BoolFOption<"cir-warnings",
   NegFlag<SetFalse, [], [], "Don't use">,
   BothFlags<[], [CC1Option], " CIR to emit (analysis based) warnings">>;
 /// ClangIR-specific options - END
-
->>>>>>> 40264e3181e6 ([CIR] Implement cc1 support for a CIR pipeline)
 def flto_EQ : Joined<["-"], "flto=">,
   Visibility<[ClangOption, CLOption, CC1Option, FC1Option, FlangOption]>,
   Group<f_Group>,
