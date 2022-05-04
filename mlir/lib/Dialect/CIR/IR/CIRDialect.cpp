@@ -63,41 +63,24 @@ void cir::CIRDialect::initialize() {
 // ConstantOp
 //===----------------------------------------------------------------------===//
 
-<<<<<<< HEAD
-LogicalResult ConstantOp::verify() {
-  auto opType = getType();
-  auto val = getValue();
-  auto valueType = val.getType();
 
-  if (mlir::isa<NullAttr>(val)) {
-    if (mlir::isa<::mlir::cir::PointerType>(opType))
-||||||| parent of e5c59df893b8 ([CIR] Add cir.global operation)
-LogicalResult ConstantOp::verify() {
-  auto opType = getType();
-  auto val = getValue();
-  auto valueType = val.getType();
-
-  if (val.isa<NullAttr>()) {
-    if (opType.isa<::mlir::cir::PointerType>())
-=======
 static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
                                         mlir::Attribute attrType) {
-  if (attrType.isa<NullAttr>()) {
-    if (opType.isa<::mlir::cir::PointerType>())
->>>>>>> e5c59df893b8 ([CIR] Add cir.global operation)
+  if (mlir::isa<NullAttr>(attrType)) {
+    if (mlir::isa<::mlir::cir::PointerType>(opType))
       return success();
     return op->emitOpError("nullptr expects pointer type");
   }
 
-  if (attrType.isa<BoolAttr>()) {
-    if (!opType.isa<mlir::cir::BoolType>())
+  if (mlir::isa<BoolAttr>(attrType)) {
+    if (!mlir::isa<mlir::cir::BoolType>(opType))
       return op->emitOpError("result type (")
              << opType << ") must be '!cir.bool' for '" << attrType << "'";
     return success();
   }
 
-  if (attrType.isa<IntegerAttr, FloatAttr>()) {
-    auto at = attrType.cast<TypedAttr>();
+  if (mlir::isa<IntegerAttr, FloatAttr>(attrType)) {
+    auto at = mlir::cast<TypedAttr>(attrType);
     if (at.getType() != opType) {
       return op->emitOpError("result type (")
              << opType << ") does not match value type (" << at.getType()
@@ -106,50 +89,16 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-  assert(attrType.isa<TypedAttr>() && "What else could we be looking at here?");
+  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
   return op->emitOpError("cannot have value of type ")
-         << attrType.cast<TypedAttr>().getType();
+         << mlir::cast<TypedAttr>(attrType).getType();
 }
 
 LogicalResult ConstantOp::verify() {
   // ODS already generates checks to make sure the result type is valid. We just
   // need to additionally check that the value's attribute type is consistent
   // with the result type.
-<<<<<<< HEAD
-  if (mlir::isa<BoolAttr>(val)) {
-    if (!mlir::isa<mlir::cir::BoolType>(opType))
-      return emitOpError("result type (")
-             << opType << ") must be '!cir.bool' for '" << val << "'";
-    return success();
-  }
-
-  if (mlir::isa<IntegerType,FloatType>(opType)) {
-    if (valueType != opType)
-      return emitOpError("result type (")
-             << opType << ") does not match value type (" << valueType << ")";
-    return success();
-  }
-
-  return emitOpError("cannot have value of type ") << valueType;
-||||||| parent of e5c59df893b8 ([CIR] Add cir.global operation)
-  if (val.isa<BoolAttr>()) {
-    if (!opType.isa<mlir::cir::BoolType>())
-      return emitOpError("result type (")
-             << opType << ") must be '!cir.bool' for '" << val << "'";
-    return success();
-  }
-
-  if (opType.isa<IntegerType, FloatType>()) {
-    if (valueType != opType)
-      return emitOpError("result type (")
-             << opType << ") does not match value type (" << valueType << ")";
-    return success();
-  }
-
-  return emitOpError("cannot have value of type ") << valueType;
-=======
   return checkConstantTypes(getOperation(), getType(), getValue());
->>>>>>> e5c59df893b8 ([CIR] Add cir.global operation)
 }
 
 static ParseResult parseConstantValue(OpAsmParser &parser,
