@@ -369,14 +369,8 @@ mlir::Attribute ConstantEmitter::emitForMemory(CIRGenModule &CGM,
   }
 
   // Zero-extend bool.
-<<<<<<< HEAD
-  if (llvm::isa<mlir::cir::BoolType>(C.getType())) {
-||||||| parent of 782be1d89afc ([CIR] Change the type order on global constants)
-  if (C.getType().isa<mlir::cir::BoolType>()) {
-=======
-  auto typed = C.dyn_cast<mlir::TypedAttr>();
-  if (typed && typed.getType().isa<mlir::cir::BoolType>()) {
->>>>>>> 782be1d89afc ([CIR] Change the type order on global constants)
+  auto typed = mlir::dyn_cast<mlir::TypedAttr>(C);
+  if (typed && mlir::isa<mlir::cir::BoolType>(typed.getType())) {
     assert(0 && "not implemented");
   }
 
@@ -495,8 +489,8 @@ mlir::Attribute ConstantEmitter::tryEmitPrivate(const APValue &Value,
       if (!C)
         return nullptr;
 
-      assert(C.isa<mlir::TypedAttr>() && "This should always be a TypedAttr.");
-      auto CTyped = C.cast<mlir::TypedAttr>();
+      assert(mlir::isa<mlir::TypedAttr>(C) && "This should always be a TypedAttr.");
+      auto CTyped = mlir::cast<mlir::TypedAttr>(C);
 
       if (I == 0)
         CommonElementType = CTyped.getType();

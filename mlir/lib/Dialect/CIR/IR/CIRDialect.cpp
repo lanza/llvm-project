@@ -89,18 +89,12 @@ static LogicalResult checkConstantTypes(mlir::Operation *op, mlir::Type opType,
     return success();
   }
 
-<<<<<<< HEAD
-  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
-||||||| parent of 782be1d89afc ([CIR] Change the type order on global constants)
-  assert(attrType.isa<TypedAttr>() && "What else could we be looking at here?");
-=======
-  if (attrType.isa<mlir::cir::CstArrayAttr>()) {
+  if (mlir::isa<mlir::cir::CstArrayAttr>(attrType)) {
     // CstArrayAttr is already verified to bing with cir.array type.
     return success();
   }
 
-  assert(attrType.isa<TypedAttr>() && "What else could we be looking at here?");
->>>>>>> 782be1d89afc ([CIR] Change the type order on global constants)
+  assert(mlir::isa<TypedAttr>(attrType) && "What else could we be looking at here?");
   return op->emitOpError("cannot have value of type ")
          << mlir::cast<TypedAttr>(attrType).getType();
 }
@@ -923,10 +917,10 @@ parseGlobalOpTypeAndInitialValue(OpAsmParser &parser, TypeAttr &typeAttr,
   if (parseConstantValue(parser, attr).failed())
     return failure();
 
-  assert(attr.isa<mlir::TypedAttr>() &&
+  assert(mlir::isa<mlir::TypedAttr>(attr) &&
          "Non-typed attrs shouldn't appear here.");
-  initialValueAttr = attr.cast<mlir::TypedAttr>();
-  typeAttr = TypeAttr::get(attr.cast<mlir::TypedAttr>().getType());
+  initialValueAttr = mlir::cast<mlir::TypedAttr>(attr);
+  typeAttr = TypeAttr::get(mlir::cast<mlir::TypedAttr>(attr).getType());
 
   return success();
 }
@@ -974,6 +968,33 @@ mlir::OpTrait::impl::verifySameFirstOperandAndResultType(Operation *op) {
            << "requires the same type for first operand and result";
 
   return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CIR attributes
+//===----------------------------------------------------------------------===//
+
+LogicalResult mlir::cir::CstArrayAttr::verify(
+    ::llvm::function_ref<::mlir::InFlightDiagnostic()> emitError,
+    ::mlir::Type type, ArrayAttr value) {
+  // Make sure both number of elements and subelement types match type.
+  mlir::cir::ArrayType at = mlir::cast<mlir::cir::ArrayType>(type);
+  if (at.getSize() != value.size())
+    return emitError() << "cst array size should match type size";
+  LogicalResult eltTypeCheck = success();
+  value.walkImmediateSubElements(
+      [&](Attribute attr) {
+        // Once we find a mismatch, stop there.
+        if (eltTypeCheck.failed())
+          return;
+        auto typedAttr = mlir::dyn_cast<TypedAttr>(attr);
+        if (!typedAttr || typedAttr.getType() != at.getEltType()) {
+          eltTypeCheck = failure();
+          emitError() << "cst array element should match array element type";
+        }
+      },
+      [&](Type type) {});
+  return eltTypeCheck;
 }
 
 //===----------------------------------------------------------------------===//
