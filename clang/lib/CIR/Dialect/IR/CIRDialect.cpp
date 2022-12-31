@@ -566,7 +566,9 @@ void ScopeOp::build(
 
   mlir::Type yieldTy;
   scopeBuilder(builder, yieldTy, result.location);
-  result.addTypes(TypeRange{yieldTy});
+
+  if (yieldTy)
+    result.addTypes(TypeRange{yieldTy});
 }
 
 void ScopeOp::build(OpBuilder &builder, OperationState &result,
