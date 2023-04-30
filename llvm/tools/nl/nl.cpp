@@ -31,6 +31,35 @@ static cl::opt<std::string> outputFilename("o",
                                            cl::desc("Override output filename"),
                                            cl::value_desc("filename"));
 
+namespace nl {
+class Pass {
+public:
+  Pass() {}
+  virtual void run(Module &module) = 0;
+  virtual ~Pass() {}
+};
+class PrintInstructionPass : public Pass {
+public:
+  PrintInstructionPass() {}
+  virtual ~PrintInstructionPass() {}
+
+  virtual void run(Module &module) override {
+    for (auto &function : module)
+      for (auto &block : function)
+        for (auto &insn : block)
+          insn.dump();
+  }
+};
+} // namespace nl
+
+void realMain(Module &module) {
+  std::vector<nl::Pass *> pm;
+  pm.push_back(new nl::PrintInstructionPass);
+
+  for (auto *pass : pm)
+    pass->run(module);
+}
+
 static CodeGenOpt::Level GetCodeGenOptLevel() {
   return static_cast<CodeGenOpt::Level>(unsigned(0));
 }
@@ -147,6 +176,8 @@ int main(int argc, char const **argv) {
   ModulePassManager outputPipeline;
   ModuleAnalysisManager MAM;
   PB.registerModuleAnalyses(MAM);
+
+  realMain(*module);
 
   outputPipeline.addPass(PrintModulePass(out->os(), "", true, false));
   outputPipeline.run(*module, MAM);
