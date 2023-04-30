@@ -103,6 +103,7 @@ public:
       auto rhsConstant = dyn_cast<ConstantInt>(rhs);
       if (!rhsConstant)
         continue;
+      // Probably doesn't do the right thing with regards to wrapping
       auto replace = ConstantInt::get(
           lhs->getType(), lhsConstant->getValue() + rhsConstant->getValue());
       insn.replaceAllUsesWith(replace);
