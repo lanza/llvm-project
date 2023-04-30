@@ -1,7 +1,7 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
-#include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Module.h>
 
 using namespace llvm;
@@ -26,34 +26,49 @@ public:
   virtual ~BasicBlockPass() {}
 };
 class BasicBlockPassManager : public FunctionPass {
-  std::vector<BasicBlockPass *> passes;
+  std::vector<std::unique_ptr<BasicBlockPass>> passes;
 
 public:
-  void add(BasicBlockPass *pass) { passes.push_back(pass); }
+  void add(BasicBlockPass *pass) {
+    passes.push_back(std::unique_ptr<BasicBlockPass>(pass));
+  }
+  template <typename T> void add(T pass) {
+    passes.push_back(std::make_unique<T>(std::move(pass)));
+  }
   virtual void run(Function &function) override {
-    for (auto *pass : passes)
+    for (auto &pass : passes)
       for (auto &block : function)
         pass->run(block);
   }
 };
 class FunctionPassManager : public ModulePass {
-  std::vector<FunctionPass *> passes;
+  std::vector<std::unique_ptr<FunctionPass>> passes;
 
 public:
-  void add(FunctionPass *pass) { passes.push_back(pass); }
+  void add(FunctionPass *pass) {
+    passes.push_back(std::unique_ptr<FunctionPass>(pass));
+  }
+  template <typename T> void add(T pass) {
+    passes.push_back(std::make_unique<T>(std::move(pass)));
+  }
   virtual void run(Module &module) override {
-    for (auto *pass : passes)
+    for (auto &pass : passes)
       for (auto &function : module)
         pass->run(function);
   }
 };
 class ModulePassManager : public ModulePass {
-  std::vector<ModulePass *> passes;
+  std::vector<std::unique_ptr<ModulePass>> passes;
 
 public:
-  void add(ModulePass *pass) { passes.push_back(pass); }
+  void add(ModulePass *pass) {
+    passes.push_back(std::unique_ptr<ModulePass>(pass));
+  }
+  template <typename T> void add(T pass) {
+    passes.push_back(std::make_unique<T>(std::move(pass)));
+  }
   virtual void run(Module &module) override {
-    for (auto *pass : passes)
+    for (auto &pass : passes)
       pass->run(module);
   }
 };
@@ -102,11 +117,10 @@ void realMain(Module &module) {
   nl::FunctionPassManager fpm;
 
   nl::BasicBlockPassManager bpm;
-  bpm.add(new nl::TriviallyFoldConstantAddPass);
-  fpm.add(&bpm);
+  bpm.add(nl::TriviallyFoldConstantAddPass());
+  fpm.add(std::move(bpm));
 
-  mpm.add(&fpm);
+  mpm.add(std::move(fpm));
 
   mpm.run(module);
 }
-
