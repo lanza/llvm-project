@@ -111,6 +111,35 @@ public:
   }
 };
 
+class TriviallyFoldAddZeroPass : public BasicBlockPass {
+public:
+  virtual void run(BasicBlock &block) override {
+    for (auto &insn : block) {
+      auto op = dyn_cast<BinaryOperator>(&insn);
+      if (!op)
+        continue;
+      if (op->getOpcode() != llvm::Instruction::Add)
+        continue;
+      auto lhs = op->getOperand(0);
+      auto rhs = op->getOperand(1);
+
+      if (auto lhsConstant = dyn_cast<ConstantInt>(lhs)) {
+        if (lhsConstant->getValue().isZero()) {
+          insn.replaceAllUsesWith(rhs);
+          continue;
+        }
+      }
+
+      if (auto rhsConstant = dyn_cast<ConstantInt>(rhs)) {
+        if (rhsConstant->getValue().isZero()) {
+          insn.replaceAllUsesWith(lhs);
+          continue;
+        }
+      }
+    }
+  }
+};
+
 class PrintInstructionPass : public ModulePass {
 public:
   PrintInstructionPass() {}
@@ -128,6 +157,7 @@ public:
 void realMain(Module &module) {
   nl::ModulePassManager mpm;
 
+  mpm.add(nl::BasicBlockToModuleProxyPass(nl::TriviallyFoldAddZeroPass()));
   mpm.add(nl::BasicBlockToModuleProxyPass(nl::TriviallyFoldConstantAddPass()));
 
   mpm.run(module);
