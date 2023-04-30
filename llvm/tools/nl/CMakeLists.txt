@@ -23,6 +23,7 @@ set(LLVM_LINK_COMPONENTS
 
 add_llvm_tool(nl
   nl.cpp
+  Passes.cpp
 
   DEPENDS
   intrinsics_gen
