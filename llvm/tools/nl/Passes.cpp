@@ -57,6 +57,19 @@ public:
         pass->run(function);
   }
 };
+class BasicBlockToModuleProxyPass : public ModulePass {
+  std::unique_ptr<BasicBlockPass> pass;
+
+public:
+  template <typename T>
+  BasicBlockToModuleProxyPass(T pass)
+      : pass{std::make_unique<T>(std::move(pass))} {}
+  virtual void run(Module &module) override {
+    for (auto &function : module)
+      for (auto &block : function)
+        pass->run(block);
+  }
+};
 class ModulePassManager : public ModulePass {
   std::vector<std::unique_ptr<ModulePass>> passes;
 
@@ -114,13 +127,7 @@ public:
 void realMain(Module &module) {
   nl::ModulePassManager mpm;
 
-  nl::FunctionPassManager fpm;
-
-  nl::BasicBlockPassManager bpm;
-  bpm.add(nl::TriviallyFoldConstantAddPass());
-  fpm.add(std::move(bpm));
-
-  mpm.add(std::move(fpm));
+  mpm.add(nl::BasicBlockToModuleProxyPass(nl::TriviallyFoldConstantAddPass()));
 
   mpm.run(module);
 }
