@@ -140,6 +140,19 @@ public:
   }
 };
 
+class RemoveDeadInstructionPass : public BasicBlockPass {
+public:
+  virtual void run(BasicBlock &block) override {
+    for (auto &insn : make_early_inc_range(block)) {
+      // TODO: is this right?
+      if (insn.isTerminator())
+        continue;
+      if (insn.users().begin() == insn.users().end())
+        insn.eraseFromParent();
+    }
+  }
+};
+
 class PrintInstructionPass : public ModulePass {
 public:
   PrintInstructionPass() {}
@@ -159,6 +172,7 @@ void realMain(Module &module) {
 
   mpm.add(nl::BasicBlockToModuleProxyPass(nl::TriviallyFoldAddZeroPass()));
   mpm.add(nl::BasicBlockToModuleProxyPass(nl::TriviallyFoldConstantAddPass()));
+  mpm.add(nl::BasicBlockToModuleProxyPass(nl::RemoveDeadInstructionPass()));
 
   mpm.run(module);
 }
