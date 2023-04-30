@@ -32,13 +32,58 @@ static cl::opt<std::string> outputFilename("o",
                                            cl::value_desc("filename"));
 
 namespace nl {
-class Pass {
+class ModulePass {
 public:
-  Pass() {}
+  ModulePass() {}
   virtual void run(Module &module) = 0;
-  virtual ~Pass() {}
+  virtual ~ModulePass() {}
 };
-class PrintInstructionPass : public Pass {
+class FunctionPass {
+public:
+  FunctionPass() {}
+  virtual void run(Function &function) = 0;
+  virtual ~FunctionPass() {}
+};
+class BasicBlockPass {
+public:
+  BasicBlockPass() {}
+  virtual void run(BasicBlock &block) = 0;
+  virtual ~BasicBlockPass() {}
+};
+class BasicBlockPassManager : public FunctionPass {
+  std::vector<BasicBlockPass *> passes;
+
+public:
+  void add(BasicBlockPass *pass) { passes.push_back(pass); }
+  virtual void run(Function &function) override {
+    for (auto *pass : passes)
+      for (auto &block : function)
+        pass->run(block);
+  }
+};
+class FunctionPassManager : public ModulePass {
+  std::vector<FunctionPass *> passes;
+
+public:
+  void add(FunctionPass *pass) { passes.push_back(pass); }
+  virtual void run(Module &module) override {
+    for (auto *pass : passes)
+      for (auto &function : module)
+        pass->run(function);
+  }
+};
+class ModulePassManager : public ModulePass {
+  std::vector<ModulePass *> passes;
+
+public:
+  void add(ModulePass *pass) { passes.push_back(pass); }
+  virtual void run(Module &module) override {
+    for (auto *pass : passes)
+      pass->run(module);
+  }
+};
+
+class PrintInstructionPass : public ModulePass {
 public:
   PrintInstructionPass() {}
   virtual ~PrintInstructionPass() {}
@@ -53,11 +98,16 @@ public:
 } // namespace nl
 
 void realMain(Module &module) {
-  std::vector<nl::Pass *> pm;
-  pm.push_back(new nl::PrintInstructionPass);
+  nl::ModulePassManager mpm;
 
-  for (auto *pass : pm)
-    pass->run(module);
+  nl::FunctionPassManager fpm;
+
+  nl::BasicBlockPassManager bpm;
+  fpm.add(&bpm);
+
+  mpm.add(&fpm);
+
+  mpm.run(module);
 }
 
 static CodeGenOpt::Level GetCodeGenOptLevel() {
