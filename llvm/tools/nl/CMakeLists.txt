@@ -1,0 +1,29 @@
+set(LLVM_LINK_COMPONENTS
+  AllTargetsAsmParsers
+  AllTargetsCodeGens
+  AllTargetsDescs
+  AllTargetsInfos
+  Analysis
+  InstCombine
+  Vectorize
+  CodeGen
+  Core
+  IPO
+  IRReader
+  IRPrinter
+  TransformUtils
+  BitWriter
+  MC
+  Passes
+  ScalarOpts
+  Support
+  Target
+  TargetParser
+  )
+
+add_llvm_tool(nl
+  nl.cpp
+
+  DEPENDS
+  intrinsics_gen
+)
