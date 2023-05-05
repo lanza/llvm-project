@@ -221,6 +221,8 @@ auto mapStringToPasses(const std::vector<std::string_view> &passes)
     else if (passName == "deadinsn")
       outPasses.emplace_back(std::make_unique<nl::BasicBlockToModuleProxyPass>(
           nl::RemoveDeadInstructionPass()));
+    else if (passName == "printinsn")
+      outPasses.emplace_back(std::make_unique<nl::PrintInstructionPass>());
     else
       llvm_unreachable("NYI");
   }
