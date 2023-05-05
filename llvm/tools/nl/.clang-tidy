@@ -1,4 +1,4 @@
-InheritParentConfig: true
+Checks: '*,clang-diagnostic-*,llvm-*,misc-*,-misc-unused-parameters,-misc-non-private-member-variables-in-classes,readability-identifier-naming,-llvmlibc*,-fuchsia*,-altera*,-readability-braces-around-statements,-hicpp-braces-around-statements,-google-readability-braces-around-statements,-misc-use-anonymous-namespace'
 CheckOptions:
   - key:             readability-identifier-naming.MemberCase
     value:           camelBack
