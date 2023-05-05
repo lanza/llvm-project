@@ -173,8 +173,13 @@ public:
   void run(Module &module) override {
     for (auto &function : module)
       for (auto &block : function)
-        for (auto &insn : block)
+        for (auto &insn : block) {
+#ifdef DEBUG
           insn.dump();
+#else
+          outs() << insn.getName() << '\n';
+#endif
+        }
   }
 };
 } // namespace nl
