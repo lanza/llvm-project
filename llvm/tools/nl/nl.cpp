@@ -31,11 +31,14 @@ static cl::opt<std::string> outputFilename("o",
                                            cl::desc("Override output filename"),
                                            cl::value_desc("filename"));
 
+static cl::opt<std::string> passPipeline("passes",
+                                         cl::desc("The list of passes to run"));
+
 static CodeGenOpt::Level GetCodeGenOptLevel() {
   return static_cast<CodeGenOpt::Level>(unsigned(0));
 }
 
-void realMain(Module &module);
+void realMain(Module &module, std::string_view passPipeline);
 
 // Returns the TargetMachine instance or zero if no triple is provided.
 static TargetMachine *GetTargetMachine(Triple TheTriple, StringRef CPUStr,
@@ -150,7 +153,7 @@ int main(int argc, char const **argv) {
   ModuleAnalysisManager MAM;
   PB.registerModuleAnalyses(MAM);
 
-  realMain(*module);
+  realMain(*module, passPipeline);
 
   outputPipeline.addPass(PrintModulePass(out->os(), "", true, false));
   outputPipeline.run(*module, MAM);

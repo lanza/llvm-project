@@ -1,4 +1,4 @@
-; RUN: nl %s | FileCheck %s
+; RUN: nl %s -passes=foldaddzero,foldaddconstant,deadinsn | FileCheck %s
 
 define i32 @foo() {
   %a = add nsw i32 2, 1
