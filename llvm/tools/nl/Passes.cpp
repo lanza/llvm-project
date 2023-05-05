@@ -201,8 +201,9 @@ auto splitPasses(std::string_view passPipeline)
   }
 
   if (previousIndex <= passPipeline.size())
-    elements.emplace_back(passPipeline.begin() + previousIndex,
-                          passPipeline.begin() + index);
+    elements.emplace_back(
+        passPipeline.begin() + static_cast<int>(previousIndex),
+        passPipeline.begin() + static_cast<int>(passPipeline.size()));
 
   return elements;
 }
