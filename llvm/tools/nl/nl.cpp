@@ -16,11 +16,12 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 
+#include <memory>
 #include <optional>
 
 using namespace llvm;
 
-static codegen::RegisterCodeGenFlags CFG;
+const static codegen::RegisterCodeGenFlags cfg;
 
 static cl::opt<std::string> inputFilename(cl::Positional,
                                           cl::desc("<input file>"),
@@ -34,73 +35,73 @@ static cl::opt<std::string> outputFilename("o",
 static cl::opt<std::string> passPipeline("passes",
                                          cl::desc("The list of passes to run"));
 
-static CodeGenOpt::Level GetCodeGenOptLevel() {
-  return static_cast<CodeGenOpt::Level>(unsigned(0));
+static auto getCodeGenOptLevel() -> CodeGenOpt::Level {
+  return static_cast<CodeGenOpt::Level>(static_cast<unsigned>(0));
 }
 
 void realMain(Module &module, std::string_view passPipeline);
 
 // Returns the TargetMachine instance or zero if no triple is provided.
-static TargetMachine *GetTargetMachine(Triple TheTriple, StringRef CPUStr,
-                                       StringRef FeaturesStr,
-                                       const TargetOptions &Options) {
-  std::string Error;
-  const Target *TheTarget =
-      TargetRegistry::lookupTarget(codegen::getMArch(), TheTriple, Error);
+static auto getTargetMachine(Triple theTriple, StringRef cpuStr,
+                             StringRef featuresStr,
+                             const TargetOptions &options) -> TargetMachine * {
+  std::string error;
+  const Target *theTarget =
+      TargetRegistry::lookupTarget(codegen::getMArch(), theTriple, error);
   // Some modules don't specify a triple, and this is okay.
-  if (!TheTarget) {
+  if (theTarget == nullptr) {
     return nullptr;
   }
 
-  return TheTarget->createTargetMachine(
-      TheTriple.getTriple(), codegen::getCPUStr(), codegen::getFeaturesStr(),
-      Options, codegen::getExplicitRelocModel(),
-      codegen::getExplicitCodeModel(), GetCodeGenOptLevel());
+  return theTarget->createTargetMachine(
+      theTriple.getTriple(), codegen::getCPUStr(), codegen::getFeaturesStr(),
+      options, codegen::getExplicitRelocModel(),
+      codegen::getExplicitCodeModel(), getCodeGenOptLevel());
 }
 
-int main(int argc, char const **argv) {
-  InitLLVM x(argc, argv);
+auto main(int argc, char const **argv) -> int {
+  InitLLVM llvmInit(argc, argv);
 
   InitializeAllTargets();
   InitializeAllTargetMCs();
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
-  PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initializeCore(Registry);
-  initializeScalarOpts(Registry);
-  initializeVectorization(Registry);
-  initializeIPO(Registry);
-  initializeAnalysis(Registry);
-  initializeTransformUtils(Registry);
-  initializeInstCombine(Registry);
-  initializeTarget(Registry);
+  PassRegistry &registry = *PassRegistry::getPassRegistry();
+  initializeCore(registry);
+  initializeScalarOpts(registry);
+  initializeVectorization(registry);
+  initializeIPO(registry);
+  initializeAnalysis(registry);
+  initializeTransformUtils(registry);
+  initializeInstCombine(registry);
+  initializeTarget(registry);
   // For codegen passes, only passes that do IR to IR transformation are
   // supported.
-  initializeExpandLargeDivRemLegacyPassPass(Registry);
-  initializeExpandLargeFpConvertLegacyPassPass(Registry);
-  initializeExpandMemCmpPassPass(Registry);
-  initializeScalarizeMaskedMemIntrinLegacyPassPass(Registry);
-  initializeSelectOptimizePass(Registry);
-  initializeCallBrPreparePass(Registry);
-  initializeCodeGenPreparePass(Registry);
-  initializeAtomicExpandPass(Registry);
-  initializeRewriteSymbolsLegacyPassPass(Registry);
-  initializeWinEHPreparePass(Registry);
-  initializeDwarfEHPrepareLegacyPassPass(Registry);
-  initializeSafeStackLegacyPassPass(Registry);
-  initializeSjLjEHPreparePass(Registry);
-  initializePreISelIntrinsicLoweringLegacyPassPass(Registry);
-  initializeGlobalMergePass(Registry);
-  initializeIndirectBrExpandPassPass(Registry);
-  initializeInterleavedLoadCombinePass(Registry);
-  initializeInterleavedAccessPass(Registry);
-  initializeUnreachableBlockElimLegacyPassPass(Registry);
-  initializeExpandReductionsPass(Registry);
-  initializeExpandVectorPredicationPass(Registry);
-  initializeWasmEHPreparePass(Registry);
-  initializeWriteBitcodePassPass(Registry);
-  initializeReplaceWithVeclibLegacyPass(Registry);
-  initializeJMCInstrumenterPass(Registry);
+  initializeExpandLargeDivRemLegacyPassPass(registry);
+  initializeExpandLargeFpConvertLegacyPassPass(registry);
+  initializeExpandMemCmpPassPass(registry);
+  initializeScalarizeMaskedMemIntrinLegacyPassPass(registry);
+  initializeSelectOptimizePass(registry);
+  initializeCallBrPreparePass(registry);
+  initializeCodeGenPreparePass(registry);
+  initializeAtomicExpandPass(registry);
+  initializeRewriteSymbolsLegacyPassPass(registry);
+  initializeWinEHPreparePass(registry);
+  initializeDwarfEHPrepareLegacyPassPass(registry);
+  initializeSafeStackLegacyPassPass(registry);
+  initializeSjLjEHPreparePass(registry);
+  initializePreISelIntrinsicLoweringLegacyPassPass(registry);
+  initializeGlobalMergePass(registry);
+  initializeIndirectBrExpandPassPass(registry);
+  initializeInterleavedLoadCombinePass(registry);
+  initializeInterleavedAccessPass(registry);
+  initializeUnreachableBlockElimLegacyPassPass(registry);
+  initializeExpandReductionsPass(registry);
+  initializeExpandVectorPredicationPass(registry);
+  initializeWasmEHPreparePass(registry);
+  initializeWriteBitcodePassPass(registry);
+  initializeReplaceWithVeclibLegacyPass(registry);
+  initializeJMCInstrumenterPass(registry);
 
   cl::ParseCommandLineOptions(argc, argv, "my optimizer\n");
 
@@ -119,43 +120,45 @@ int main(int argc, char const **argv) {
   if (outputFilename.empty())
     outputFilename = "-";
 
-  std::error_code ec;
+  std::error_code errorCode;
   sys::fs::OpenFlags flags = sys::fs::OF_TextWithCRLF;
-  out.reset(new ToolOutputFile(outputFilename, ec, flags));
-  if (ec) {
-    errs() << ec.message() << '\n';
+  out = std::make_unique<ToolOutputFile>(outputFilename, errorCode, flags);
+  if (errorCode) {
+    errs() << errorCode.message() << '\n';
     return 1;
   }
 
-  Triple ModuleTriple(module->getTargetTriple());
-  std::string CPUStr, FeaturesStr;
-  TargetMachine *Machine = nullptr;
-  const TargetOptions Options =
-      codegen::InitTargetOptionsFromCodeGenFlags(ModuleTriple);
+  Triple moduleTriple(module->getTargetTriple());
+  std::string cpuStr;
+  std::string featuresStr;
+  TargetMachine *machine = nullptr;
+  const TargetOptions options =
+      codegen::InitTargetOptionsFromCodeGenFlags(moduleTriple);
 
-  if (ModuleTriple.getArch()) {
-    CPUStr = codegen::getCPUStr();
-    FeaturesStr = codegen::getFeaturesStr();
-    Machine = GetTargetMachine(ModuleTriple, CPUStr, FeaturesStr, Options);
-  } else if (ModuleTriple.getArchName() != "unknown" &&
-             ModuleTriple.getArchName() != "") {
+  if (moduleTriple.getArch() != 0U) {
+    cpuStr = codegen::getCPUStr();
+    featuresStr = codegen::getFeaturesStr();
+    machine = getTargetMachine(moduleTriple, cpuStr, featuresStr, options);
+  } else if (moduleTriple.getArchName() != "unknown" &&
+             !moduleTriple.getArchName().empty()) {
     errs() << argv[0] << ": unrecognized architecture '"
-           << ModuleTriple.getArchName() << "' provided.\n";
+           << moduleTriple.getArchName() << "' provided.\n";
     return 1;
   }
 
-  std::unique_ptr<TargetMachine> tm(Machine);
-  std::optional<PGOOptions> p;
-  PassInstrumentationCallbacks pic;
-  PipelineTuningOptions pto;
-  PassBuilder PB(tm.get(), pto, p, &pic);
+  std::unique_ptr<TargetMachine> targetMachine(machine);
+  std::optional<PGOOptions> pgoOptions;
+  PassInstrumentationCallbacks passInstrumentationCallbacks;
+  PipelineTuningOptions pipelineTuningOptions;
+  PassBuilder passBuilder(targetMachine.get(), pipelineTuningOptions,
+                          pgoOptions, &passInstrumentationCallbacks);
   ModulePassManager outputPipeline;
-  ModuleAnalysisManager MAM;
-  PB.registerModuleAnalyses(MAM);
+  ModuleAnalysisManager mam;
+  passBuilder.registerModuleAnalyses(mam);
 
   realMain(*module, passPipeline);
 
   outputPipeline.addPass(PrintModulePass(out->os(), "", true, false));
-  outputPipeline.run(*module, MAM);
+  outputPipeline.run(*module, mam);
   out->keep();
 }
