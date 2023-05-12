@@ -18,7 +18,14 @@
 #include "llvm/CodeGen/LiveRegUnits.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include <initializer_list>
+
+extern llvm::cl::opt<unsigned> OutlinerCallOverheadScalar;
+extern llvm::cl::opt<unsigned> OutlinerSequenceCountScalar;
+extern llvm::cl::opt<unsigned> OutlinerFrameOverheadScalar;
+extern llvm::cl::opt<unsigned> OutlinerSequenceLengthScalarOutline;
+extern llvm::cl::opt<unsigned> OutlinerSequenceLengthScalarNoOutline;
 
 namespace llvm {
 namespace outliner {
@@ -238,23 +245,36 @@ public:
 
   /// Return the number of bytes it would take to outline this
   /// function.
-  unsigned getOutliningCost() const {
+  double getOutliningCost() const {
     unsigned CallOverhead = 0;
     for (const Candidate &C : Candidates)
       CallOverhead += C.getCallOverhead();
-    return CallOverhead + SequenceSize + FrameOverhead;
+    double ScaledOverhead =
+        static_cast<double>(CallOverhead * OutlinerCallOverheadScalar) / 100;
+    double ScaledSequenceSize =
+        static_cast<double>(SequenceSize *
+                            OutlinerSequenceLengthScalarOutline) /
+        100;
+    double ScaledFrameOverhead =
+        static_cast<double>(FrameOverhead * OutlinerFrameOverheadScalar) / 100;
+    return ScaledOverhead + ScaledSequenceSize + ScaledFrameOverhead;
   }
 
-  /// Return the size in bytes of the unoutlined sequences.
-  unsigned getNotOutlinedCost() const {
-    return getOccurrenceCount() * SequenceSize;
+  /// Return the size in bytes of the unoutlined sequences
+  double getNotOutlinedCost() const {
+    return static_cast<double>(getOccurrenceCount() *
+                               OutlinerSequenceCountScalar) /
+           100 *
+           static_cast<double>(SequenceSize *
+                               OutlinerSequenceLengthScalarNoOutline) /
+           100;
   }
 
   /// Return the number of instructions that would be saved by outlining
   /// this function.
-  unsigned getBenefit() const {
-    unsigned NotOutlinedCost = getNotOutlinedCost();
-    unsigned OutlinedCost = getOutliningCost();
+  double getBenefit() const {
+    double NotOutlinedCost = getNotOutlinedCost();
+    double OutlinedCost = getOutliningCost();
     return (NotOutlinedCost < OutlinedCost) ? 0
                                             : NotOutlinedCost - OutlinedCost;
   }
