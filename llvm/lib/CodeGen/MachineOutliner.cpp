@@ -116,10 +116,29 @@ static cl::opt<unsigned> OutlinerReruns(
     cl::desc(
         "Number of times to rerun the outliner after the initial outline"));
 
-static cl::opt<unsigned> OutlinerBenefitThreshold(
+cl::opt<unsigned> OutlinerBenefitThreshold(
     "outliner-benefit-threshold", cl::init(1), cl::Hidden,
     cl::desc(
         "The minimum size in bytes before an outlining candidate is accepted"));
+
+cl::opt<unsigned> OutlinerCallOverheadScalar("outliner-call-overhead-scalar",
+                                             cl::init(100), cl::Hidden,
+                                             cl::desc(""));
+cl::opt<unsigned> OutlinerSequenceCountScalar("outliner-sequence-count-scalar",
+                                              cl::init(100), cl::Hidden,
+                                              cl::desc(""));
+cl::opt<unsigned> OutlinerFrameOverheadScalar("outliner-frame-overhead-scalar",
+                                              cl::init(100), cl::Hidden,
+                                              cl::desc(""));
+cl::opt<unsigned> OutlinerSequenceLengthScalarOutline(
+    "outliner-sequence-length-scalar-outline", cl::init(100), cl::Hidden,
+    cl::desc(""));
+cl::opt<unsigned> OutlinerSequenceLengthScalarNoOutline(
+    "outliner-sequence-length-scalar-no-outline", cl::init(100), cl::Hidden,
+    cl::desc(""));
+cl::opt<bool>
+    OutlinerSortByBenefitToCostRatio("outliner-sort-by-benefit-to-cost-ratio",
+                                     cl::init(false), cl::Hidden, cl::desc(""));
 
 namespace {
 
@@ -530,9 +549,9 @@ void MachineOutliner::emitNotOutliningCheaperRemark(
       << " from " << NV("NumOccurrences", CandidatesForRepeatedSeq.size())
       << " locations."
       << " Bytes from outlining all occurrences ("
-      << NV("OutliningCost", OF.getOutliningCost()) << ")"
+      << NV("OutliningCost", unsigned(OF.getOutliningCost())) << ")"
       << " >= Unoutlined instruction bytes ("
-      << NV("NotOutliningCost", OF.getNotOutlinedCost()) << ")"
+      << NV("NotOutliningCost", unsigned(OF.getNotOutlinedCost())) << ")"
       << " (Also found at: ";
 
     // Tell the user the other places the candidate was found.
@@ -553,7 +572,8 @@ void MachineOutliner::emitOutlinedFunctionRemark(OutlinedFunction &OF) {
   MachineOptimizationRemarkEmitter MORE(*OF.MF, nullptr);
   MachineOptimizationRemark R(DEBUG_TYPE, "OutlinedFunction",
                               MBB->findDebugLoc(MBB->begin()), MBB);
-  R << "Saved " << NV("OutliningBenefit", OF.getBenefit()) << " bytes by "
+  R << "Saved " << NV("OutliningBenefit", unsigned(OF.getBenefit()))
+    << " bytes by "
     << "outlining " << NV("Length", OF.getNumInstrs()) << " instructions "
     << "from " << NV("NumOccurrences", OF.getOccurrenceCount())
     << " locations. "
@@ -831,6 +851,11 @@ bool MachineOutliner::outline(Module &M,
   // Sort by benefit. The most beneficial functions should be outlined first.
   stable_sort(FunctionList,
               [](const OutlinedFunction &LHS, const OutlinedFunction &RHS) {
+                if (OutlinerSortByBenefitToCostRatio)
+                  return (static_cast<double>(LHS.getNotOutlinedCost()) /
+                          static_cast<double>(LHS.getOutliningCost())) >
+                         (static_cast<double>(RHS.getNotOutlinedCost()) /
+                          static_cast<double>(RHS.getOutliningCost()));
                 return LHS.getBenefit() > RHS.getBenefit();
               });
 
