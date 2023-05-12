@@ -176,6 +176,11 @@ static cl::opt<bool> EnableMergeFunctions(
     "enable-merge-functions", cl::init(false), cl::Hidden,
     cl::desc("Enable function merging as part of the optimization pipeline"));
 
+static cl::opt<bool> EnableEarlyMergeFunctions(
+    "enable-early-merge-functions", cl::init(false), cl::Hidden,
+    cl::desc(
+        "Enable early function merging as part of the optimization pipeline"));
+
 static cl::opt<bool> EnablePostPGOLoopRotation(
     "enable-post-pgo-loop-rotation", cl::init(true), cl::Hidden,
     cl::desc("Run the loop rotation transformation after PGO instrumentation"));
@@ -1706,6 +1711,9 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     MPM.addPass(RequireAnalysisPass<ProfileSummaryAnalysis, Module>());
   }
 
+  if (EnableEarlyMergeFunctions)
+    MPM.addPass(MergeFunctionsPass());
+
   // Try to run OpenMP optimizations, quick no-op if no OpenMP metadata present.
   MPM.addPass(OpenMPOptPass(ThinOrFullLTOPhase::FullLTOPostLink));
 
@@ -1802,6 +1810,9 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(PeepholeFPM),
                                                 PTO.EagerlyInvalidateAnalyses));
 
+  if (EnableEarlyMergeFunctions)
+    MPM.addPass(MergeFunctionsPass());
+
   // Note: historically, the PruneEH pass was run first to deduce nounwind and
   // generally clean up exception handling overhead. It isn't clear this is
   // valuable as the inliner doesn't currently care whether it is inlining an
@@ -1824,6 +1835,9 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
   // contexts.
   if (EnableMemProfContextDisambiguation)
     MPM.addPass(MemProfContextDisambiguation());
+
+  if (EnableEarlyMergeFunctions)
+    MPM.addPass(MergeFunctionsPass());
 
   // Optimize globals again after we ran the inliner.
   MPM.addPass(GlobalOptPass());
