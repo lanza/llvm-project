@@ -2,7 +2,11 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/InstrTypes.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Transforms/Utils/Cloning.h>
+
+#include <llvm/IR/CFG.h>
 
 using namespace llvm;
 
@@ -67,6 +71,18 @@ public:
     for (auto &pass : passes)
       for (auto &function : module)
         pass->run(function);
+  }
+};
+class FunctionToModuleProxyPass : public ModulePass {
+  std::unique_ptr<FunctionPass> pass;
+
+public:
+  template <typename T>
+  explicit FunctionToModuleProxyPass(T pass)
+      : pass{std::make_unique<T>(std::move(pass))} {}
+  void run(Module &module) override {
+    for (auto &function : module)
+      pass->run(function);
   }
 };
 class BasicBlockToModuleProxyPass : public ModulePass {

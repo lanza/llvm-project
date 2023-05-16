@@ -2020,6 +2020,16 @@ void InlineCostCallAnalyzer::updateThreshold(CallBase &Call, Function &Callee) {
     Cost -= LastCallToStaticBonus;
     StaticBonusApplied = LastCallToStaticBonus;
   }
+  if (!F.hasLocalLinkage())
+    return;
+
+  int LocalLinkageWithNCalleesScalar = 2;
+  int LocalLinkageWithNCalleesMax = 4;
+
+  auto icount = F.getInstructionCount();
+  for (int i = 2; i <= LocalLinkageWithNCalleesMax; i++)
+    if (F.hasNUses(i))
+      Threshold += icount * 5 / (i * LocalLinkageWithNCalleesScalar);
 }
 
 bool CallAnalyzer::visitCmpInst(CmpInst &I) {
