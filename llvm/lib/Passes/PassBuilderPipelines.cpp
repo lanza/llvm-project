@@ -1797,6 +1797,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     PeepholeFPM.addPass(AggressiveInstCombinePass());
   invokePeepholeEPCallbacks(PeepholeFPM, Level);
 
+  buildFunctionSimplificationPipeline(Level, ThinOrFullLTOPhase::FullLTOPostLink);
+
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(PeepholeFPM),
                                                 PTO.EagerlyInvalidateAnalyses));
 
