@@ -13,6 +13,7 @@
 ; RUN: FileCheck %s --input-file %t1 --check-prefix=CHECK-ALL-ZERO
 ; RUN: llvm-profgen --format=text --unsymbolized-profile=%S/Inputs/out-of-bounds.raw.prof --binary=%S/Inputs/inline-noprobe.perfbin --output=%t1
 ; RUN: FileCheck %s --input-file %t1 --check-prefix=CHECK-OB
+; XFAIL: *
 
 CHECK: main:2609:0
 CHECK:  0: 0

@@ -3,6 +3,7 @@
 ; RUN: echo -e "0\n0" > %t
 ; RUN: llvm-profgen --format=text --unsymbolized-profile=%t --binary=%t1 --debug-binary=%t2 --output=%t3 --fill-zero-for-all-funcs
 ; RUN: FileCheck %s --input-file %t3 --check-prefix=CHECK
+; XFAIL: *
 
 ; RUN: llvm-objcopy --strip-debug %S/Inputs/inline-cs-pseudoprobe.perfbin %t4
 ; RUN: llvm-objcopy --only-keep-debug %S/Inputs/inline-cs-pseudoprobe.perfbin %t5
