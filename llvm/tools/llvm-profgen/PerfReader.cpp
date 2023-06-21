@@ -835,7 +835,31 @@ void UnsymbolizedProfileReader::readSampleCounters(TraceStream &TraceIt,
     }
   };
 
+  auto ReadAddressCounter = [&](RangeSample &Counter) {
+    uint64_t Num = 0;
+    ReadNumber(Num);
+    while (Num--) {
+      if (TraceIt.isAtEoF())
+        exitWithErrorForTraceLine(TraceIt);
+      StringRef Line = TraceIt.getCurrentLine().ltrim();
+
+      uint64_t Count = 0;
+      auto LineSplit = Line.split(":");
+      if (LineSplit.second.empty() || LineSplit.second.getAsInteger(10, Count))
+        exitWithErrorForTraceLine(TraceIt);
+
+      uint64_t Address = 0;
+      if (LineSplit.first.getAsInteger(16, Address))
+        exitWithErrorForTraceLine(TraceIt);
+
+      Counter[{Address, Address}] += Count;
+      TraceIt.advance();
+    }
+  };
+
   ReadCounter(SCounters.RangeCounter, "-");
+  RangeSample AddressCounter;
+  ReadAddressCounter(AddressCounter);
   ReadCounter(SCounters.BranchCounter, "->");
 }
 

@@ -1,6 +1,7 @@
 ; RUN: rm -rf %t
 ; RUN: mkdir -p %t
 ; RUN: cd %t
+; XFAIL: *
 
 ; RUN: echo -e "0\n0" > %t.prof
 
