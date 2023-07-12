@@ -98,6 +98,7 @@ public:
         pass->run(block);
   }
 };
+
 class ModulePassManager : public ModulePass {
   std::vector<std::unique_ptr<ModulePass>> passes;
 
@@ -184,6 +185,47 @@ public:
   }
 };
 
+class Inliner : public ModulePass {
+  void run(Module &module) override {
+    for (auto &func : module) {
+      for (auto &block : func) {
+        for (auto &insn : make_early_inc_range(block)) {
+          if (auto *call = llvm::dyn_cast<CallInst>(&insn)) {
+            InlineFunctionInfo inlineInfo;
+            InlineFunction(*call, inlineInfo);
+          }
+        }
+      }
+    }
+  }
+};
+
+class PlayWithCFGPass : public FunctionPass {
+public:
+  void run(Function &function) override {
+    auto &entry = function.getEntryBlock();
+
+    // for (auto *pred : predecessors(&entry)) {
+    //   pred->dump();
+    // }
+    // for (auto *succ : successors(&entry)) {
+    //   succ->dump();
+    // }
+
+    // for (auto child = GraphTraits<BasicBlock *>::child_begin(&entry);
+    //      child != GraphTraits<BasicBlock *>::child_end(&entry); child++) {
+    //   child->dump();
+    // }
+
+    for (auto *node : nodes(&function)) {
+      node->dump();
+    }
+    // for (auto *node : nodes(&entry)) {
+    //   node->dump();
+    // }
+  }
+};
+
 class PrintInstructionPass : public ModulePass {
 public:
   void run(Module &module) override {
@@ -204,7 +246,7 @@ auto splitPasses(std::string_view passPipeline)
     -> std::vector<std::string_view> {
 
   if (passPipeline.empty())
-    return {passPipeline};
+    return {};
 
   size_t index = 0;
   size_t previousIndex = 0;
@@ -245,6 +287,11 @@ auto mapStringToPasses(const std::vector<std::string_view> &passes)
           nl::RemoveDeadInstructionPass()));
     else if (passName == "printinsn")
       outPasses.emplace_back(std::make_unique<nl::PrintInstructionPass>());
+    else if (passName == "playwithcfg")
+      outPasses.emplace_back(std::make_unique<nl::FunctionToModuleProxyPass>(
+          nl::PlayWithCFGPass()));
+    else if (passName == "inline")
+      outPasses.emplace_back(std::make_unique<nl::Inliner>());
     else
       llvm_unreachable("NYI");
   }
