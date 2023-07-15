@@ -217,9 +217,9 @@ public:
     //   child->dump();
     // }
 
-    for (auto *node : nodes(&function)) {
-      node->dump();
-    }
+    // for (auto *node : nodes(&function)) {
+    //   node->dump();
+    // }
     // for (auto *node : nodes(&entry)) {
     //   node->dump();
     // }
