@@ -85,7 +85,7 @@ auto main(int argc, char const **argv) -> int {
   initializeCallBrPreparePass(registry);
   initializeCodeGenPreparePass(registry);
   initializeAtomicExpandPass(registry);
-  initializeRewriteSymbolsLegacyPassPass(registry);
+  //initializeRewriteSymbolsLegacyPassPass(registry);
   initializeWinEHPreparePass(registry);
   initializeDwarfEHPrepareLegacyPassPass(registry);
   initializeSafeStackLegacyPassPass(registry);
