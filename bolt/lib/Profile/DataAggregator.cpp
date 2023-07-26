@@ -396,9 +396,16 @@ std::error_code DataAggregator::writeAutoFDOData(StringRef OutputFilename) {
 
   OutFile << FallthroughLBRs.size() << "\n";
   for (const auto &[Trace, Info] : FallthroughLBRs) {
-    OutFile << formatv("{0:x-}-{1:x-}:{2}\n", filterAddress(Trace.From),
-                       filterAddress(Trace.To),
-                       Info.InternCount + Info.ExternCount);
+    // BOLT isn't sensitive to the ordering here, but llvm-profgen assumes that
+    // all ranges have a From address preceeding the To address. So just swap
+    // the output if necessary.
+    auto First = filterAddress(Trace.From);
+    auto Second = filterAddress(Trace.To);
+    if (First > Second)
+      std::swap(First, Second);
+    OutFile << Twine::utohexstr(First) << "-"
+            << Twine::utohexstr(Second) << ":"
+            << (Info.InternCount + Info.ExternCount) << "\n";
   }
 
   OutFile << BasicSamples.size() << "\n";
