@@ -823,6 +823,17 @@ void DataReader::consumeAllRemainingFS() {
   }
 }
 
+bool DataReader::expectAndConsumeGreaterThan() {
+  if (ParsingBuf[0] != '>') {
+    reportError("expected greater than");
+    return false;
+  }
+
+  ParsingBuf = ParsingBuf.drop_front(1);
+  Col += 1;
+  return true;
+}
+
 bool DataReader::checkAndConsumeNewLine() {
   if (ParsingBuf[0] != '\n')
     return false;

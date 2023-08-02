@@ -524,9 +524,29 @@ Error RewriteInstance::discoverStorage() {
     if (Error E = SectionNameOrErr.takeError())
       return E;
     StringRef SectionName = SectionNameOrErr.get();
+
+    // TODO: Turn this into a loop that checks the segment for whether or not it
+    // contains the address range of the .text section
+    // e.g. Sec.sh_offset + Sec.sh_size <= Phdr.p_offset + Phdr.p_filesz;
     if (SectionName == ".text") {
+
       BC->OldTextSectionAddress = Section.getAddress();
       BC->OldTextSectionSize = Section.getSize();
+
+      if (BC->HasFixedLoadAddress) {
+        for (const ELF64LE::Phdr &Phdr : PHs) {
+          unsigned long p_offset = Phdr.p_offset;
+          unsigned long p_filesz = Phdr.p_filesz;
+          unsigned long p_addr = Phdr.p_paddr;
+
+          if (Section.getAddress() >= p_addr &&
+              Section.getAddress() + Section.getSize() <
+                  p_addr + Phdr.p_memsz) {
+            BC->OldTextSegmentAddress = p_addr;
+            break;
+          }
+        }
+      }
 
       Expected<StringRef> SectionContentsOrErr = Section.getContents();
       if (Error E = SectionContentsOrErr.takeError())

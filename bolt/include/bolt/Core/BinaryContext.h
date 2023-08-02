@@ -668,6 +668,7 @@ public:
   uint64_t LayoutStartAddress{0};
 
   /// Old .text info.
+  uint64_t OldTextSegmentAddress{0};
   uint64_t OldTextSectionAddress{0};
   uint64_t OldTextSectionOffset{0};
   uint64_t OldTextSectionSize{0};

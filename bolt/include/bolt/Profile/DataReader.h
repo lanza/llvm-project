@@ -465,6 +465,7 @@ protected:
   void reportError(StringRef ErrorMsg);
   bool expectAndConsumeFS();
   void consumeAllRemainingFS();
+  bool expectAndConsumeGreaterThan();
   bool checkAndConsumeNewLine();
   ErrorOr<StringRef> parseString(char EndChar, bool EndNl = false);
   ErrorOr<int64_t> parseNumberField(char EndChar, bool EndNl = false);
