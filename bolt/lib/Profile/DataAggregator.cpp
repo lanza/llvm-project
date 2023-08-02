@@ -51,6 +51,12 @@ static cl::opt<std::string>
                       cl::desc("Generate LBR info with perf itrace argument"),
                       cl::cat(AggregatorCategory));
 
+static cl::opt<bool> IncludeAutoFDOAddressCounters(
+    "include-autofdo-address-counters",
+    cl::desc("Whether or not the unsymbolized-profile includes a separate "
+             "section for address counters"),
+    cl::init(true), cl::cat(AggregatorCategory));
+
 static cl::opt<bool>
 FilterMemProfile("filter-mem-profile",
   cl::desc("if processing a memory profile, filter out stack or heap accesses "
@@ -88,6 +94,12 @@ extern cl::opt<opts::ProfileFormatKind> ProfileFormat;
 
 cl::opt<bool> ReadPreAggregated(
     "pa", cl::desc("skip perf and read data from a pre-aggregated file format"),
+    cl::cat(AggregatorCategory));
+
+cl::opt<bool> ReadUnsymbolizedProfile(
+    "unsymbolized-profile",
+    cl::desc("skip perf and read data from a unsymbolized profile file format "
+             "(as defined by llvm-profgen"),
     cl::cat(AggregatorCategory));
 
 static cl::opt<bool>
@@ -162,8 +174,8 @@ void DataAggregator::findPerfExecutable() {
 void DataAggregator::start() {
   outs() << "PERF2BOLT: Starting data aggregation job for " << Filename << "\n";
 
-  // Don't launch perf for pre-aggregated files
-  if (opts::ReadPreAggregated)
+  // Don't launch perf for pre-aggregated or unsymbolized-profile files
+  if (opts::ReadPreAggregated || opts::ReadUnsymbolizedProfile)
     return;
 
   findPerfExecutable();
@@ -203,7 +215,7 @@ void DataAggregator::start() {
 }
 
 void DataAggregator::abort() {
-  if (opts::ReadPreAggregated)
+  if (opts::ReadPreAggregated || opts::ReadUnsymbolizedProfile)
     return;
 
   std::string Error;
@@ -321,7 +333,7 @@ void DataAggregator::processFileBuildID(StringRef FileBuildID) {
 }
 
 bool DataAggregator::checkPerfDataMagic(StringRef FileName) {
-  if (opts::ReadPreAggregated)
+  if (opts::ReadPreAggregated || opts::ReadUnsymbolizedProfile)
     return true;
 
   Expected<sys::fs::file_t> FD = sys::fs::openNativeFileForRead(FileName);
@@ -348,9 +360,7 @@ bool DataAggregator::checkPerfDataMagic(StringRef FileName) {
   return false;
 }
 
-void DataAggregator::parsePreAggregated() {
-  std::string Error;
-
+static std::unique_ptr<MemoryBuffer> getFileBuffer(llvm::StringRef Filename) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> MB =
       MemoryBuffer::getFileOrSTDIN(Filename);
   if (std::error_code EC = MB.getError()) {
@@ -359,12 +369,28 @@ void DataAggregator::parsePreAggregated() {
     exit(1);
   }
 
-  FileBuf = std::move(*MB);
+  return std::move(*MB);
+}
+
+
+void DataAggregator::parsePreAggregated() {
+  FileBuf = getFileBuffer(Filename);
   ParsingBuf = FileBuf->getBuffer();
   Col = 0;
   Line = 1;
   if (parsePreAggregatedLBRSamples()) {
-    errs() << "PERF2BOLT: failed to parse samples\n";
+    errs() << "PERF2BOLT: failed to parse pre-aggregated samples\n";
+    exit(1);
+  }
+}
+
+void DataAggregator::parseUnsymbolizedProfile() {
+  FileBuf = getFileBuffer(Filename);
+  ParsingBuf = FileBuf->getBuffer();
+  Col = 0;
+  Line = 1;
+  if (parseUnsymbolizedProfileLBRSamples()) {
+    errs() << "PERF2BOLT: failed to parse unsymbolized-profile samples\n";
     exit(1);
   }
 }
@@ -504,6 +530,11 @@ Error DataAggregator::preprocessProfile(BinaryContext &BC) {
     return Error::success();
   }
 
+  if (opts::ReadUnsymbolizedProfile) {
+    parseUnsymbolizedProfile();
+    return Error::success();
+  }
+
   if (std::optional<StringRef> FileBuildID = BC.getFileBuildID()) {
     outs() << "BOLT-INFO: binary build-id is:     " << *FileBuildID << "\n";
     processFileBuildID(*FileBuildID);
@@ -608,8 +639,8 @@ bool DataAggregator::mayHaveProfileData(const BinaryFunction &Function) {
 }
 
 void DataAggregator::processProfile(BinaryContext &BC) {
-  if (opts::ReadPreAggregated)
-    processPreAggregated();
+  if (opts::ReadPreAggregated || opts::ReadUnsymbolizedProfile)
+    processLBRAggregatedSamples();
   else if (opts::BasicAggregation)
     processBasicEvents();
   else
@@ -1209,7 +1240,7 @@ ErrorOr<Location> DataAggregator::parseLocationOrOffset() {
 }
 
 ErrorOr<DataAggregator::AggregatedLBREntry>
-DataAggregator::parseAggregatedLBREntry() {
+DataAggregator::parsePreAggregatedLBREntry() {
   while (checkAndConsumeFS()) {
   }
 
@@ -1265,6 +1296,88 @@ DataAggregator::parseAggregatedLBREntry() {
   return AggregatedLBREntry{From.get(), To.get(),
                             static_cast<uint64_t>(Frequency.get()), Mispreds,
                             Type};
+}
+
+ErrorOr<std::vector<DataAggregator::AggregatedLBREntry>>
+DataAggregator::parseUnsymbolizedProfileLBREntry() {
+  while (checkAndConsumeFS()) {
+  }
+
+  std::vector<AggregatedLBREntry> Entries;
+  auto TextSegmentAddress = BC->OldTextSegmentAddress;
+
+  // TODO: support non-nested context-sensitive pofiles
+  ErrorOr<int64_t> TypeOrErr = parseNumberField('\n', true);
+  if (auto EC = TypeOrErr.getError())
+    return EC;
+  auto RangeCounterEntries = TypeOrErr.get();
+  while (RangeCounterEntries--) {
+    auto a = parseHexField('-');
+    if (auto EC = a.getError())
+      return EC;
+    auto aa = a.get();
+    auto c = parseHexField(':');
+    if (auto EC = c.getError())
+      return EC;
+    auto cc = c.get();
+    auto e = parseNumberField('\n');
+    if (auto EC = e.getError())
+      return EC;
+    uint64_t ee = e.get();
+
+    aa += TextSegmentAddress;
+    cc += TextSegmentAddress;
+
+    Entries.push_back(AggregatedLBREntry{Location(aa), Location(cc), ee,
+                                         std::numeric_limits<uint64_t>::max(),
+                                         AggregatedLBREntry::FT});
+  }
+
+  if (opts::IncludeAutoFDOAddressCounters) {
+    TypeOrErr = parseNumberField('\n', true);
+    if (auto EC = TypeOrErr.getError())
+      return EC;
+    auto BranchCounterEntries = TypeOrErr.get();
+    while (BranchCounterEntries--) {
+      auto addressOrError = parseHexField(':');
+      if (auto EC = addressOrError.getError())
+        return EC;
+      [[maybe_unused]] auto address = addressOrError.get();
+      auto countOrErr = parseNumberField('\n');
+      if (auto EC = countOrErr.getError())
+        return EC;
+      [[maybe_unused]] uint64_t count = countOrErr.get();
+    }
+  }
+
+  TypeOrErr = parseNumberField('\n', true);
+  if (auto EC = TypeOrErr.getError())
+    return EC;
+  auto BranchCounterEntries = TypeOrErr.get();
+  while (BranchCounterEntries--) {
+    auto a = parseHexField('-');
+    if (auto EC = a.getError())
+      return EC;
+    auto aa = a.get();
+    if (!expectAndConsumeGreaterThan())
+      return make_error_code(llvm::errc::io_error);
+    auto c = parseHexField(':');
+    if (auto EC = c.getError())
+      return EC;
+    auto cc = c.get();
+    auto e = parseNumberField('\n');
+    if (auto EC = e.getError())
+      return EC;
+    uint64_t ee = e.get();
+
+    aa += TextSegmentAddress;
+    cc += TextSegmentAddress;
+
+    Entries.push_back(AggregatedLBREntry{Location(aa), Location(cc), ee,
+                                         std::numeric_limits<uint64_t>::max(),
+                                         AggregatedLBREntry::BRANCH});
+  }
+  return Entries;
 }
 
 bool DataAggregator::ignoreKernelInterrupt(LBREntry &LBR) const {
@@ -1713,10 +1826,10 @@ void DataAggregator::processMemEvents() {
 
 std::error_code DataAggregator::parsePreAggregatedLBRSamples() {
   outs() << "PERF2BOLT: parsing pre-aggregated profile...\n";
-  NamedRegionTimer T("parseAggregated", "Parsing aggregated branch events",
+  NamedRegionTimer T("parsePreAggregated", "Parsing pre-aggregated branch events",
                      TimerGroupName, TimerGroupDesc, opts::TimeAggregator);
   while (hasData()) {
-    ErrorOr<AggregatedLBREntry> AggrEntry = parseAggregatedLBREntry();
+    ErrorOr<AggregatedLBREntry> AggrEntry = parsePreAggregatedLBREntry();
     if (std::error_code EC = AggrEntry.getError())
       return EC;
 
@@ -1730,7 +1843,30 @@ std::error_code DataAggregator::parsePreAggregatedLBRSamples() {
   return std::error_code();
 }
 
-void DataAggregator::processPreAggregated() {
+std::error_code DataAggregator::parseUnsymbolizedProfileLBRSamples() {
+  outs() << "PERF2BOLT: parsing unsymbolied profile...\n";
+  NamedRegionTimer T("parseUnsymbolizedProfile",
+                     "Parsing unsymbolized-profile branch events",
+                     TimerGroupName, TimerGroupDesc, opts::TimeAggregator);
+
+  auto AggrEntries = parseUnsymbolizedProfileLBREntry();
+  if (auto EC = AggrEntries.getError())
+    return EC;
+  auto Entries = AggrEntries.get();
+
+  for (auto& Entry : Entries) {
+    if (auto *BF = getBinaryFunctionContainingAddress(Entry.From.Offset))
+      BF->setHasProfileAvailable();
+    if (auto *BF = getBinaryFunctionContainingAddress(Entry.To.Offset))
+      BF->setHasProfileAvailable();
+
+    AggregatedLBRs.emplace_back(std::move(Entry));
+  }
+
+  return std::error_code();
+}
+
+void DataAggregator::processLBRAggregatedSamples() {
   outs() << "PERF2BOLT: processing pre-aggregated profile...\n";
   NamedRegionTimer T("processAggregated", "Processing aggregated branch events",
                      TimerGroupName, TimerGroupDesc, opts::TimeAggregator);
