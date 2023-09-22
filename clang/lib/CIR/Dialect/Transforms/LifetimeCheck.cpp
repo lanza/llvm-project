@@ -887,7 +887,7 @@ void LifetimeCheckPass::checkIf(IfOp ifOp) {
 template <class T> bool isStructAndHasAttr(mlir::Type ty) {
   if (!mlir::isa<mlir::cir::StructType>(ty))
     return false;
-  return hasAttr<T>(*mlir::cast<mlir::cir::StructType>(ty).getAst());
+  return hasAttr<T>(mlir::cast<mlir::cir::StructType>(ty).getAst());
 }
 
 static bool isOwnerType(mlir::Type ty) {
@@ -1753,7 +1753,7 @@ bool LifetimeCheckPass::isLambdaType(mlir::Type ty) {
   auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(ty);
   if (!taskTy)
     return false;
-  if (taskTy.getAst()->isLambda())
+  if (taskTy.getAst().isLambda())
     IsLambdaTyCache[ty] = true;
 
   return IsLambdaTyCache[ty];
@@ -1768,7 +1768,7 @@ bool LifetimeCheckPass::isTaskType(mlir::Value taskVal) {
     auto taskTy = mlir::dyn_cast<mlir::cir::StructType>(taskVal.getType());
     if (!taskTy)
       return false;
-    return taskTy.getAst()->hasPromiseType();
+    return taskTy.getAst().hasPromiseType();
   }();
 
   IsTaskTyCache[ty] = result;
