@@ -101,10 +101,16 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::AllocaOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto type = adaptor.getAllocaType();
-    auto mlirType = getTypeConverter()->convertType(type);
-
+    // Get the type being allocated (the pointee type)
+    auto allocaType = op.getAllocaType();
+    auto mlirType = getTypeConverter()->convertType(allocaType);
+    if (!mlirType) {
+      return mlir::LogicalResult::failure();
+    }
+    
+    // Create a 0-D memref (scalar) for the allocated type
     auto memreftype = mlir::MemRefType::get({}, mlirType);
+    
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
                                                         op.getAlignmentAttr());
     return mlir::LogicalResult::success();
@@ -146,15 +152,19 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ty = getTypeConverter()->convertType(op.getType());
     mlir::TypedAttr value;
+    
     if (mlir::isa<mlir::cir::BoolType>(op.getType())) {
       auto boolValue = mlir::cast<mlir::cir::BoolAttr>(op.getValue());
       value = rewriter.getIntegerAttr(ty, boolValue.getValue());
+    } else if (auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue())) {
+      value = rewriter.getIntegerAttr(ty, cirIntAttr.getValue());
+    } else if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(op.getValue())) {
+      // Handle floating-point constants
+      value = rewriter.getFloatAttr(ty, floatAttr.getValueAsDouble());
     } else {
-      auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue());
-      assert(cirIntAttr && "NYI non cir.int attr");
-      value = rewriter.getIntegerAttr(
-          ty, cast<mlir::cir::IntAttr>(op.getValue()).getValue());
+      return mlir::LogicalResult::failure();
     }
+    
     rewriter.replaceOpWithNewOp<mlir::arith::ConstantOp>(op, ty, value);
     return mlir::LogicalResult::success();
   }
@@ -179,17 +189,19 @@ public:
       signatureConversion.addInputs(argType.index(), convertedType);
     }
 
-    mlir::Type resultType;
-    if (fnType.getReturnType()) {
-      resultType = getTypeConverter()->convertType(fnType.getReturnType());
+    mlir::TypeRange resultTypes;
+    // Only convert return type if the function is not void
+    if (!fnType.isVoid()) {
+      auto resultType = getTypeConverter()->convertType(fnType.getReturnType());
       if (!resultType)
         return failure();
+      resultTypes = resultType;
     }
 
     auto fn = rewriter.create<mlir::func::FuncOp>(
         op.getLoc(), op.getName(),
         rewriter.getFunctionType(signatureConversion.getConvertedTypes(),
-                                 resultType ? resultType : mlir::TypeRange{}));
+                                 resultTypes));
 
     rewriter.inlineRegionBefore(op.getBody(), fn.getBody(), fn.end());
     if (failed(rewriter.convertRegionTypes(&fn.getBody(), *typeConverter,
@@ -522,19 +534,6 @@ public:
   }
 };
 
-class CIRYieldOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::YieldOp> {
-public:
-  using OpConversionPattern<mlir::cir::YieldOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::YieldOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(op,
-                                                    adaptor.getOperands());
-    return mlir::LogicalResult::success();
-  }
-};
 
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
 public:
@@ -594,32 +593,6 @@ public:
   }
 };
 
-class CIRScopeOpLowering
-    : public mlir::OpConversionPattern<mlir::cir::ScopeOp> {
-public:
-  using OpConversionPattern<mlir::cir::ScopeOp>::OpConversionPattern;
-
-  mlir::LogicalResult
-  matchAndRewrite(mlir::cir::ScopeOp op, OpAdaptor adaptor,
-                  mlir::ConversionPatternRewriter &rewriter) const override {
-    mlir::scf::ExecuteRegionOp exec;
-    if (op.getResults().size()) {
-      SmallVector<mlir::Type> types;
-      if (mlir::failed(
-              getTypeConverter()->convertTypes(op->getResultTypes(), types)))
-        return mlir::failure();
-      exec = rewriter.create<mlir::scf::ExecuteRegionOp>(op.getLoc(), types);
-    } else {
-      exec = rewriter.create<mlir::scf::ExecuteRegionOp>(op.getLoc(),
-                                                         mlir::TypeRange{});
-    }
-
-    rewriter.inlineRegionBefore(op.getScopeRegion(), exec.getRegion(),
-                                exec.getRegion().end());
-    rewriter.replaceOp(op, exec.getResults());
-    return mlir::LogicalResult::success();
-  }
-};
 
 class CIRCastOpLowering : public mlir::OpConversionPattern<mlir::cir::CastOp> {
 public:
@@ -731,17 +704,21 @@ public:
                                     mlir::IntegerType::Signless);
     });
     addConversion([&](mlir::cir::PointerType type) -> std::optional<mlir::Type> {
-      // Convert pointer to memref for now
-      auto pointee = convertType(type.getPointee());
-      if (!pointee)
+      // For pointers, create a memref with the pointee type
+      auto pointeeType = convertType(type.getPointee());
+      if (!pointeeType)
         return std::nullopt;
-      return mlir::MemRefType::get({-1}, pointee);
+      return mlir::MemRefType::get({}, pointeeType);
     });
     addConversion([&](mlir::cir::ArrayType type) -> std::optional<mlir::Type> {
       auto elementType = convertType(type.getEltType());
       if (!elementType)
         return std::nullopt;
-      return mlir::MemRefType::get(type.getSize(), elementType);
+      return mlir::MemRefType::get({static_cast<int64_t>(type.getSize())}, elementType);
+    });
+    // Add float type conversions
+    addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
+      return type; // Float types are already MLIR native
     });
   }
 };
@@ -760,13 +737,10 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   target.addIllegalDialect<mlir::cir::CIRDialect>();
 
   mlir::RewritePatternSet patterns(context);
-  patterns.add<CIRReturnLowering, CIRFuncLowering, CIRCallLowering,
+  patterns.add<CIRReturnLowering, CIRFuncLowering, CIRConstantLowering,
+               CIRUnaryOpLowering, CIRBinOpLowering, CIRCmpOpLowering,
                CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
-               CIRConstantLowering, CIRUnaryOpLowering, CIRBinOpLowering,
-               CIRCmpOpLowering, CIRBrOpLowering, CIRBrCondOpLowering,
-               CIRTernaryOpLowering, CIRYieldOpLowering, CIRIfOpLowering,
-               CIRLoopOpLowering, CIRScopeOpLowering, CIRCastOpLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering>(converter, context);
+               CIRCallLowering, CIRCastOpLowering, CIRBrOpLowering>(converter, context);
 
   if (mlir::failed(
           mlir::applyPartialConversion(theModule, target, std::move(patterns))))
