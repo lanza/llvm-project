@@ -35,8 +35,8 @@ static cl::opt<std::string> outputFilename("o",
 static cl::opt<std::string> passPipeline("passes",
                                          cl::desc("The list of passes to run"));
 
-static auto getCodeGenOptLevel() -> CodeGenOpt::Level {
-  return static_cast<CodeGenOpt::Level>(static_cast<unsigned>(0));
+static auto getCodeGenOptLevel() -> CodeGenOptLevel {
+  return CodeGenOptLevel::None;
 }
 
 void realMain(Module &module, std::string_view passPipeline);
