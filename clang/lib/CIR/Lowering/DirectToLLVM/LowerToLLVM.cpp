@@ -1080,8 +1080,8 @@ public:
       rewriter.replaceAllUsesWith(op, initVal);
       rewriter.eraseOp(op);
       return mlir::success();
-    } else if (auto strTy = op.getType().dyn_cast<mlir::cir::StructType>()) {
-      if (auto zero = op.getValue().dyn_cast<mlir::cir::ZeroAttr>()) {
+    } else if (auto strTy = mlir::dyn_cast<mlir::cir::StructType>(op.getType())) {
+      if (auto zero = mlir::dyn_cast<mlir::cir::ZeroAttr>(op.getValue())) {
         auto initVal =
           lowerCirAttrAsValue(op, zero, rewriter, typeConverter);
         rewriter.replaceAllUsesWith(op, initVal);
