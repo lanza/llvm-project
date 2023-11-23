@@ -606,20 +606,8 @@ RValue CIRGenFunction::buildLoadOfBitfieldLValue(LValue LV,
   const CIRGenBitFieldInfo &info = LV.getBitFieldInfo();
 
   // Get the output type.
-<<<<<<< HEAD
-  mlir::Type ResLTy = convertType(LV.getType());
-  Address Ptr = LV.getBitFieldAddress();
-  mlir::Value Val = builder.createLoad(getLoc(Loc), Ptr);
-  auto ValWidth = mlir::cast<mlir::cir::IntType>(Val.getType()).getWidth();
-||||||| parent of bcccbf3a6a4e ([CIR][CodeGen] Bitfield operations (#279))
-  mlir::Type ResLTy = convertType(LV.getType());
-  Address Ptr = LV.getBitFieldAddress();
-  mlir::Value Val = builder.createLoad(getLoc(Loc), Ptr);
-  auto ValWidth = Val.getType().cast<IntType>().getWidth();
-=======
   mlir::Type resLTy = convertType(LV.getType());
   Address ptr = LV.getBitFieldAddress();
->>>>>>> bcccbf3a6a4e ([CIR][CodeGen] Bitfield operations (#279))
 
   bool useVolatile = LV.isVolatileQualified() &&
                      info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
@@ -666,23 +654,7 @@ void CIRGenFunction::buildStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   mlir::Type resLTy = getTypes().convertTypeForMem(Dst.getType());
   Address ptr = Dst.getBitFieldAddress();
 
-<<<<<<< HEAD
-  // Cast the source to the storage type and shift it into place.
-  SrcVal = builder.createIntCast(SrcVal, Ptr.getElementType());
-  auto SrcWidth = mlir::cast<mlir::cir::IntType>(SrcVal.getType()).getWidth();
-  mlir::Value MaskedVal = SrcVal;
-
-  const bool UseVolatile =
-||||||| parent of bcccbf3a6a4e ([CIR][CodeGen] Bitfield operations (#279))
-  // Cast the source to the storage type and shift it into place.
-  SrcVal = builder.createIntCast(SrcVal, Ptr.getElementType());
-  auto SrcWidth = SrcVal.getType().cast<IntType>().getWidth();
-  mlir::Value MaskedVal = SrcVal;
-
-  const bool UseVolatile =
-=======
   const bool useVolatile =
->>>>>>> bcccbf3a6a4e ([CIR][CodeGen] Bitfield operations (#279))
       CGM.getCodeGenOpts().AAPCSBitfieldWidth && Dst.isVolatileQualified() &&
       info.VolatileStorageSize != 0 && isAAPCS(CGM.getTarget());
 
