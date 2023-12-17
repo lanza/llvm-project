@@ -32,7 +32,7 @@ static cl::opt<std::string> outputFilename("o",
                                            cl::desc("Override output filename"),
                                            cl::value_desc("filename"));
 
-static cl::opt<std::string> passPipeline("passes",
+const static cl::opt<std::string> passPipeline("passes",
                                          cl::desc("The list of passes to run"));
 
 static auto getCodeGenOptLevel() -> CodeGenOptLevel {
@@ -79,7 +79,7 @@ auto main(int argc, char const **argv) -> int {
   // supported.
   initializeExpandLargeDivRemLegacyPassPass(registry);
   initializeExpandLargeFpConvertLegacyPassPass(registry);
-  initializeExpandMemCmpPassPass(registry);
+  initializeExpandMemCmpLegacyPassPass(registry);
   initializeScalarizeMaskedMemIntrinLegacyPassPass(registry);
   initializeSelectOptimizePass(registry);
   initializeCallBrPreparePass(registry);
@@ -92,7 +92,7 @@ auto main(int argc, char const **argv) -> int {
   initializeSjLjEHPreparePass(registry);
   initializePreISelIntrinsicLoweringLegacyPassPass(registry);
   initializeGlobalMergePass(registry);
-  initializeIndirectBrExpandPassPass(registry);
+  initializeIndirectBrExpandLegacyPassPass(registry);
   initializeInterleavedLoadCombinePass(registry);
   initializeInterleavedAccessPass(registry);
   initializeUnreachableBlockElimLegacyPassPass(registry);
