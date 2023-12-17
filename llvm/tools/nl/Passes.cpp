@@ -257,16 +257,15 @@ auto splitPasses(std::string_view passPipeline)
 
   while (index = passPipeline.find(","sv, previousIndex),
          index != std::string::npos) {
-    elements.emplace_back(passPipeline.begin() +
-                              static_cast<int>(previousIndex),
-                          passPipeline.begin() + static_cast<int>(index));
+    auto element = passPipeline.substr(previousIndex, index);
+    elements.emplace_back(element);
     previousIndex = index + 1;
   }
 
-  if (previousIndex <= passPipeline.size())
-    elements.emplace_back(
-        passPipeline.begin() + static_cast<int>(previousIndex),
-        passPipeline.begin() + static_cast<int>(passPipeline.size()));
+  if (previousIndex <= passPipeline.size()) {
+    auto element = passPipeline.substr(previousIndex, passPipeline.size());
+    elements.emplace_back(element);
+  }
 
   return elements;
 }
