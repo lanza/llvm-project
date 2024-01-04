@@ -40,6 +40,7 @@
 #include "clang/CIR/Passes.h"
 #include "clang/CIR/LowerToLLVM.h"
 #include "llvm/ADT/Sequence.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 using namespace cir;
 using namespace llvm;
@@ -69,7 +70,8 @@ struct ConvertCIRToMLIRPass
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
     registry.insert<mlir::BuiltinDialect, mlir::func::FuncDialect,
                     mlir::affine::AffineDialect, mlir::memref::MemRefDialect,
-                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect>();
+                    mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
+                    mlir::scf::SCFDialect>();
   }
   void runOnOperation() final;
 
@@ -533,12 +535,64 @@ public:
   mlir::LogicalResult
   matchAndRewrite(mlir::cir::TernaryOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    // For now, lower ternary to if-then-else pattern
-    // TODO: This is a simplified lowering that doesn't properly handle the regions
-    // A proper implementation would need to inline the regions and extract the yielded values
-    return mlir::LogicalResult::failure();
+    rewriter.setInsertionPoint(op);
+    auto condition = adaptor.getCond();
+    
+    // Convert condition to i1 if needed (type converter will handle the conversion)
+    auto i1Type = rewriter.getI1Type();
+    auto i1Condition = getTypeConverter()->materializeSourceConversion(
+        rewriter, op.getLoc(), i1Type, condition);
+    if (!i1Condition) {
+      return mlir::failure();
+    }
+    
+    SmallVector<mlir::Type> resultTypes;
+    if (mlir::failed(getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                      resultTypes)))
+      return mlir::failure();
+
+    auto ifOp = rewriter.create<mlir::scf::IfOp>(op.getLoc(), resultTypes,
+                                                 i1Condition, true);
+    auto *thenBlock = &ifOp.getThenRegion().front();
+    auto *elseBlock = &ifOp.getElseRegion().front();
+    rewriter.inlineBlockBefore(&op.getTrueRegion().front(), thenBlock,
+                               thenBlock->end());
+    rewriter.inlineBlockBefore(&op.getFalseRegion().front(), elseBlock,
+                               elseBlock->end());
+
+    rewriter.replaceOp(op, ifOp);
+    return mlir::success();
   }
 };
+
+class CIRYieldOpLowering
+    : public mlir::OpConversionPattern<mlir::cir::YieldOp> {
+public:
+  using OpConversionPattern<mlir::cir::YieldOp>::OpConversionPattern;
+  mlir::LogicalResult
+  matchAndRewrite(mlir::cir::YieldOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto *parentOp = op->getParentOp();
+    return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
+        .Case<mlir::scf::IfOp>([&](auto) {
+          rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
+              op, adaptor.getOperands());
+          return mlir::success();
+        })
+        .Default([](auto) { return mlir::failure(); });
+  }
+};
+
+void populateCIRToMLIRConversionPatterns(mlir::RewritePatternSet &patterns,
+                                         mlir::TypeConverter &converter) {
+  patterns.add<CIRReturnLowering, CIRBrOpLowering>(patterns.getContext());
+
+  patterns.add<CIRCmpOpLowering, CIRCallLowering, CIRUnaryOpLowering,
+               CIRBinOpLowering, CIRLoadLowering, CIRConstantLowering,
+               CIRStoreLowering, CIRAllocaLowering, CIRFuncLowering,
+               CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering>(converter, patterns.getContext());
+}
 
 
 class CIRIfOpLowering : public mlir::OpConversionPattern<mlir::cir::IfOp> {
@@ -716,6 +770,49 @@ public:
         return std::nullopt;
       return mlir::MemRefType::get({}, pointeeType);
     });
+    
+    // Add materialization for i1 <-> i8 conversions (for cir.bool handling)
+    addSourceMaterialization([&](mlir::OpBuilder &builder,
+                                  mlir::Type resultType, mlir::ValueRange inputs,
+                                  mlir::Location loc) -> mlir::Value {
+      if (inputs.size() != 1)
+        return nullptr;
+      
+      auto input = inputs[0];
+      auto inputType = input.getType();
+      
+      // Handle i1 -> i8 (from comparison to bool)
+      if (inputType.isInteger(1) && resultType.isInteger(8)) {
+        return builder.create<mlir::arith::ExtUIOp>(loc, resultType, input);
+      }
+      // Handle i8 -> i1 (from bool to condition)
+      if (inputType.isInteger(8) && resultType.isInteger(1)) {
+        return builder.create<mlir::arith::TruncIOp>(loc, resultType, input);
+      }
+      
+      return nullptr;
+    });
+    
+    addTargetMaterialization([&](mlir::OpBuilder &builder,
+                                  mlir::Type resultType, mlir::ValueRange inputs,
+                                  mlir::Location loc) -> mlir::Value {
+      if (inputs.size() != 1)
+        return nullptr;
+      
+      auto input = inputs[0];
+      auto inputType = input.getType();
+      
+      // Handle i1 -> i8 (from comparison to bool)
+      if (inputType.isInteger(1) && resultType.isInteger(8)) {
+        return builder.create<mlir::arith::ExtUIOp>(loc, resultType, input);
+      }
+      // Handle i8 -> i1 (from bool to condition)
+      if (inputType.isInteger(8) && resultType.isInteger(1)) {
+        return builder.create<mlir::arith::TruncIOp>(loc, resultType, input);
+      }
+      
+      return nullptr;
+    });
     addConversion([&](mlir::cir::ArrayType type) -> std::optional<mlir::Type> {
       auto elementType = convertType(type.getEltType());
       if (!elementType)
@@ -747,7 +844,8 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                CIRUnaryOpLowering, CIRBinOpLowering, CIRCmpOpLowering,
                CIRAllocaLowering, CIRLoadLowering, CIRStoreLowering,
                CIRCallLowering, CIRCastOpLowering, CIRBrOpLowering,
-               CIRBrCondOpLowering>(converter, context);
+               CIRBrCondOpLowering, CIRTernaryOpLowering,
+               CIRYieldOpLowering>(converter, context);
 
   if (mlir::failed(
           mlir::applyPartialConversion(theModule, target, std::move(patterns))))
