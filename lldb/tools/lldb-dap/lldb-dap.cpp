@@ -16,7 +16,6 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <termios.h>
 #if defined(_WIN32)
 // We need to #define NOMINMAX in order to skip `min()` and `max()` macro
 // definitions that conflict with other system headers.
@@ -603,34 +602,6 @@ void SetSourceMapFromArguments(const llvm::json::Object &arguments) {
   }
 }
 
-static void reset_stdin_termios();
-static bool g_old_stdin_termios_is_valid = false;
-static struct termios g_old_stdin_termios;
-
-// In the Driver::MainLoop, we change the terminal settings.  This function is
-// added as an atexit handler to make sure we clean them up.
-static void reset_stdin_termios() {
-  if (g_old_stdin_termios_is_valid) {
-    g_old_stdin_termios_is_valid = false;
-    ::tcsetattr(STDIN_FILENO, TCSANOW, &g_old_stdin_termios);
-  }
-}
-
-void CommandInterpreterThreadFunction() {
-  if (::tcgetattr(STDIN_FILENO, &g_old_stdin_termios) == 0) {
-    g_old_stdin_termios_is_valid = true;
-    atexit(reset_stdin_termios);
-  }
-#ifndef _MSC_VER
-  // Disabling stdin buffering with MSVC's 2015 CRT exposes a bug in fgets
-  // which causes it to miss newlines depending on whether there have been an
-  // odd or even number of characters.  Bug has been reported to MS via Connect.
- ::setbuf(stdin, nullptr);
-#endif
-  ::setbuf(stdout, nullptr);
-  g_vsc.debugger.RunCommandInterpreter(false, false);
-}
-
 // "AttachRequest": {
 //   "allOf": [ { "$ref": "#/definitions/Request" }, {
 //     "type": "object",
@@ -984,9 +955,6 @@ void request_disconnect(const llvm::json::Object &request) {
     g_dap.broadcaster.BroadcastEventByType(eBroadcastBitStopProgressThread);
     g_dap.progress_event_thread.join();
   }
-
-  if (g_vsc.command_interpreter_thread.joinable())
-    g_vsc.event_thread.join();
 }
 
 void request_exceptionInfo(const llvm::json::Object &request) {
@@ -1554,11 +1522,6 @@ void request_modules(const llvm::json::Object &request) {
 //     "supportsRunInTerminalRequest": {
 //       "type": "boolean",
 //       "description": "Client supports the runInTerminal request."
-//     },
-//     "supportsCommandInterpreter": {
-//       "type": "boolean",
-//       "description": "Client launches lldb-vscode in a terminal and thus
-//                       supports attaching the CommandInterpreter."
 //     }
 //   },
 //   "required": [ "adapterID" ]
@@ -1604,33 +1567,6 @@ void request_initialize(const llvm::json::Object &request) {
   // Start our event thread so we can receive events from the debugger, target,
   // process and more.
   g_dap.event_thread = std::thread(EventThreadFunction);
-
-  // Set the output and error file handles to redirect into nothing iff the
-  // input and output are set to stdin and stdout. If we are receiving DAP
-  // packets over a socket then keep them up. Otherwise if any code in LLDB
-  // prints to the debugger file handles, the output and error file handles are
-  // initialized to STDOUT and STDERR and any output will kill our debug
-  // session.
-  if (!g_vsc.input.descriptor.m_is_socket) {
-    FILE *out = llvm::sys::RetryAfterSignal(nullptr, fopen, "/dev/null", "w");
-    if (out) {
-      g_vsc.debugger.SetOutputFileHandle(out, true);
-      g_vsc.debugger.SetErrorFileHandle(out, false);
-    }
-  }
-
-  // We can't attach the command interpreter if the DAP packets are being sent
-  // via stdin/stdout. We would require extra sockets. So only attach the CI iff
-  // we are communicating via a socket.
-  if (g_vsc.input.descriptor.m_is_socket) {
-    const auto *arguments = request.getObject("arguments");
-    auto supports_ci =
-        GetBoolean(arguments, "supportsCommandInterpreter", false);
-    if (supports_ci) {
-      g_vsc.command_interpreter_thread =
-          std::thread(CommandInterpreterThreadFunction);
-    }
-  }
 
   llvm::json::Object response;
   FillResponse(request, response);
