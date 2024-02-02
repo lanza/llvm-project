@@ -3560,4 +3560,27 @@ def ZeroInitConstOp : CIR_Op<"llvmir.zeroinit", [Pure]>,
   let hasVerifier = 0;
 }
 
+def CIR_LibraryEndOp : CIR_Op<"library_end", [
+  Terminator, HasParent<"LibraryOp">
+]> {
+  let summary = "A pseudo op that marks the end of a cir.library.";
+  let description = [{
+    This op terminates the only block inside the only region of a `cir.library`.
+  }];
+
+  let assemblyFormat = "attr-dict";
+}
+
+
+def LibraryOp: CIR_Op<"library", [IsolatedFromAbove, SymbolTable, Symbol, SingleBlockImplicitTerminator<"LibraryEndOp">]> {
+  let summary = "A top level native library/executable unit containing either functions or translation unit.";
+  let description = [{}];
+
+//  let builders = [];
+  let regions = (region SizedRegion<1>:$bodyRegion);
+  let hasCustomAssemblyFormat = 1;
+  // let skipDefaultBuilders = 1;
+
+}
+
 #endif // MLIR_CIR_DIALECT_CIR_OPS

@@ -1,0 +1,80 @@
+// RUN: true
+
+!s32i = !cir.int<s, 32>
+module {
+  cir.library @a {
+    cir.func no_proto private @b1(...) -> !s32i
+    cir.func no_proto @a1() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.call @b1() : () -> !s32i
+      %2 = cir.call @a3() : () -> !s32i
+      %3 = cir.binop(add, %1, %2) : !s32i
+      cir.store %3, %0 : !s32i, cir.ptr <!s32i>
+      %4 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %4 : !s32i
+    }
+    cir.func no_proto @a2() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<8> : !s32i) : !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+    cir.func no_proto @a3() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<42> : !s32i) : !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+  }
+
+  cir.library @b {
+    cir.func no_proto @b1() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<9> : !s32i) : !s32i
+                                            cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+                                            %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+                                            cir.return %2 : !s32i
+    }
+    cir.func no_proto @b2() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<5> : !s32i) : !s32i
+                                            cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+                                            %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+                                            cir.return %2 : !s32i
+    }
+    cir.func no_proto @b3() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<7> : !s32i) : !s32i
+                                            cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+                                            %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+                                            cir.return %2 : !s32i
+    }
+  }
+
+  cir.library @c {
+    cir.func no_proto private @b1(...) -> !s32i
+    cir.func no_proto @c1() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.call @b1() : () -> !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+    cir.func no_proto @c2() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<2> : !s32i) : !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+    cir.func no_proto @c3() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<3> : !s32i) : !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+  }
+}

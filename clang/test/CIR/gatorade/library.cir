@@ -1,0 +1,25 @@
+// RUN: cir-opt %s -o %t.cir
+// only checking that it parses and prints
+
+!s32i = !cir.int<s, 32>
+module {
+  cir.library @a {
+    cir.func no_proto private @funcB(...) -> !s32i
+    cir.func no_proto @funcA() -> !s32i {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.call @funcB() : () -> !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+  }
+  cir.library @b {
+    cir.func no_proto @funcB() -> !s32i extra( {inline = #cir.inline<no>, optnone = #cir.optnone} ) {
+      %0 = cir.alloca !s32i, cir.ptr <!s32i>, ["__retval"] {alignment = 4 : i64}
+      %1 = cir.const(#cir.int<5> : !s32i) : !s32i
+      cir.store %1, %0 : !s32i, cir.ptr <!s32i>
+      %2 = cir.load %0 : cir.ptr <!s32i>, !s32i
+      cir.return %2 : !s32i
+    }
+  }
+}
