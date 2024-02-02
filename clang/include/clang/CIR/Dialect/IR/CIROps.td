@@ -5422,4 +5422,27 @@ def SignBitOp : CIR_Op<"signbit", [Pure]> {
   }];
 }
 
+def CIR_LibraryEndOp : CIR_Op<"library_end", [
+  Terminator, HasParent<"LibraryOp">
+]> {
+  let summary = "A pseudo op that marks the end of a cir.library.";
+  let description = [{
+    This op terminates the only block inside the only region of a `cir.library`.
+  }];
+
+  let assemblyFormat = "attr-dict";
+}
+
+
+def LibraryOp: CIR_Op<"library", [IsolatedFromAbove, SymbolTable, Symbol, SingleBlockImplicitTerminator<"LibraryEndOp">]> {
+  let summary = "A top level native library/executable unit containing either functions or translation unit.";
+  let description = [{}];
+
+//  let builders = [];
+  let regions = (region SizedRegion<1>:$bodyRegion);
+  let hasCustomAssemblyFormat = 1;
+  // let skipDefaultBuilders = 1;
+
+}
+
 #endif // LLVM_CLANG_CIR_DIALECT_IR_CIROPS

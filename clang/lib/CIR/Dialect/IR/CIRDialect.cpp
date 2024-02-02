@@ -3575,6 +3575,39 @@ LogicalResult cir::GetMemberOp::verify() {
   return mlir::success();
 }
 
+ParseResult LibraryOp::parse(OpAsmParser &parser, OperationState &result) {
+  StringAttr nameAttr;
+  ArrayAttr targetsAttr;
+
+  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
+                             result.attributes))
+    return failure();
+
+  // Properties &props = result.getOrAddProperties<Properties>()
+
+  if (parser.parseOptionalAttrDictWithKeyword(result.attributes))
+    return failure();
+
+  auto *body = result.addRegion();
+  if (parser.parseRegion(*body, {}))
+    return failure();
+
+  LibraryOp::ensureTerminator(*body, parser.getBuilder(), result.location);
+  return success();
+}
+
+void LibraryOp::print(OpAsmPrinter &p) {
+  p << ' ';
+  p.printSymbolName(getName());
+
+  p.printOptionalAttrDictWithKeyword((*this)->getAttrs(),
+                                     {mlir::SymbolTable::getSymbolAttrName()});
+
+  p << ' ';
+  p.printRegion(getRegion(), /*printEntryBlockArgs=*/false,
+                /*printBlockTerminators=*/false);
+}
+
 //===----------------------------------------------------------------------===//
 // GetRuntimeMemberOp Definitions
 //===----------------------------------------------------------------------===//
