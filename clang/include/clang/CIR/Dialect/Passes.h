@@ -43,6 +43,8 @@ std::unique_ptr<Pass> createCallConvLoweringPass();
 
 void populateCIRPreLoweringPasses(mlir::OpPassManager &pm);
 
+std::unique_ptr<Pass> createCrossLibraryImportPass();
+
 //===----------------------------------------------------------------------===//
 // Registration
 //===----------------------------------------------------------------------===//
