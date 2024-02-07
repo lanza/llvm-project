@@ -128,4 +128,16 @@ def LibOpt : Pass<"cir-lib-opt"> {
   ];
 }
 
+def CrossLibraryImport : Pass<"cir-cross-library-import"> {
+  let summary = "Import funcions from other cir.librarys";
+  let description = [{}];
+  let constructor = "mlir::createCrossLibraryImportPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+
+  let options = [
+    ListOption<"test", "test2", "std::string",
+      "Test desc test something else", "llvm::cl::ZeroOrMore">,
+  ];
+}
+
 #endif // MLIR_DIALECT_CIR_PASSES
