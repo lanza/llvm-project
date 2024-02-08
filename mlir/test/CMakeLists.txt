@@ -176,13 +176,13 @@ endif()
 list(APPEND MLIR_TEST_DEPENDS MLIRUnitTests)
 
 if(LLVM_BUILD_EXAMPLES)
-  list(APPEND MLIR_TEST_DEPENDS
-    toyc-ch1
-    toyc-ch2
-    toyc-ch3
-    toyc-ch4
-    toyc-ch5
-    )
+  # list(APPEND MLIR_TEST_DEPENDS
+  #   toyc-ch1
+  #   toyc-ch2
+  #   toyc-ch3
+  #   toyc-ch4
+  #   toyc-ch5
+  #   )
   list(APPEND MLIR_TEST_DEPENDS
     transform-opt-ch2
     transform-opt-ch3
@@ -190,12 +190,12 @@ if(LLVM_BUILD_EXAMPLES)
     mlir-minimal-opt
     mlir-transform-opt
     )
-  if(MLIR_ENABLE_EXECUTION_ENGINE)
-    list(APPEND MLIR_TEST_DEPENDS
-      toyc-ch6
-      toyc-ch7
-    )
-  endif()
+  # if(MLIR_ENABLE_EXECUTION_ENGINE)
+  #   list(APPEND MLIR_TEST_DEPENDS
+  #     toyc-ch6
+  #     toyc-ch7
+  #   )
+  # endif()
 endif()
 
 if(MLIR_ENABLE_SPIRV_CPU_RUNNER)
