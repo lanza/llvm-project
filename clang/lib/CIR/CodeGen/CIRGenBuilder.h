@@ -553,6 +553,7 @@ public:
 
   // Creates constant null value for integral type ty.
   mlir::cir::ConstantOp getNullValue(mlir::Type ty, mlir::Location loc) {
+<<<<<<< HEAD
     if (mlir::isa<mlir::cir::PointerType>(ty))
       return getNullPtr(ty, loc);
     mlir::TypedAttr attr;
@@ -564,6 +565,20 @@ public:
       llvm_unreachable("NYI");
 
     return create<mlir::cir::ConstantOp>(loc, ty, attr);
+||||||| parent of f04a9cc23718 ([CIR][CIRGen][Bugfix] Emit valid type for evaluated const (#456))
+    if (ty.isa<mlir::cir::PointerType>())
+      return getNullPtr(ty, loc);
+
+    mlir::TypedAttr attr;
+    if (ty.isa<mlir::cir::IntType>())
+      attr = mlir::cir::IntAttr::get(ty, 0);
+    else
+      llvm_unreachable("NYI");
+
+    return create<mlir::cir::ConstantOp>(loc, ty, attr);
+=======
+    return create<mlir::cir::ConstantOp>(loc, ty, getZeroInitAttr(ty));
+>>>>>>> f04a9cc23718 ([CIR][CIRGen][Bugfix] Emit valid type for evaluated const (#456))
   }
 
   mlir::cir::ConstantOp getZero(mlir::Location loc, mlir::Type ty) {
