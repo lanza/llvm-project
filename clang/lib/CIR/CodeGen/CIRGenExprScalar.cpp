@@ -2221,7 +2221,7 @@ mlir::Value ScalarExprEmitter::VisitBinLOr(const clang::BinaryOperator *E) {
     }
     // 1 || RHS: If it is safe, just elide the RHS, and return 1/true.
     if (!CGF.ContainsLabel(E->getRHS())) {
-      if (auto intTy = ResTy.dyn_cast<mlir::cir::IntType>())
+      if (auto intTy = mlir::dyn_cast<mlir::cir::IntType>(ResTy))
         return Builder.getConstInt(Loc, intTy, 1);
       else
         return Builder.getBool(true, Loc);
