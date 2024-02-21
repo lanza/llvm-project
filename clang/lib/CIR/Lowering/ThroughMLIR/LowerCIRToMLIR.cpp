@@ -111,6 +111,7 @@ public:
     // FIXME: Some types can not be converted yet (e.g. struct)
     if (!mlirType)
       return mlir::LogicalResult::failure();
+    
     auto memreftype = mlir::MemRefType::get({}, mlirType);
     
     rewriter.replaceOpWithNewOp<mlir::memref::AllocaOp>(op, memreftype,
@@ -641,8 +642,6 @@ static mlir::TypeConverter prepareTypeConverter() {
   converter.addConversion(
       [&](mlir::IntegerType type) -> mlir::Type { return type; });
   converter.addConversion(
-      [&](mlir::FloatType type) -> mlir::Type { return type; });
-  converter.addConversion(
       [&](mlir::cir::VoidType type) -> mlir::Type { return {}; });
   converter.addConversion([&](mlir::cir::IntType type) -> mlir::Type {
     // arith dialect ops doesn't take signed integer -- drop cir sign here
@@ -653,10 +652,19 @@ static mlir::TypeConverter prepareTypeConverter() {
   converter.addConversion([&](mlir::cir::BoolType type) -> mlir::Type {
     return mlir::IntegerType::get(type.getContext(), 8);
   });
+  converter.addConversion([&](mlir::cir::SingleType type) -> mlir::Type {
+    return mlir::Float32Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::DoubleType type) -> mlir::Type {
+    return mlir::Float64Type::get(type.getContext());
+  });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto elementType = converter.convertType(type.getEltType());
+    if (!elementType)
+      return nullptr;
     return mlir::MemRefType::get(type.getSize(), elementType);
   });
+  
   
   return converter;
 }
