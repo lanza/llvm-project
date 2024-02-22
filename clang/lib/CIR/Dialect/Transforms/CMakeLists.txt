@@ -1,4 +1,5 @@
 add_subdirectory(TargetLowering)
+add_subdirectory(Utils)
 
 add_clang_library(MLIRCIRTransforms
   LifetimeCheck.cpp
@@ -29,4 +30,5 @@ add_clang_library(MLIRCIRTransforms
 
   MLIRCIR
   MLIRCIRInterfaces
+  MLIRCIRTransformsUtils
 )
