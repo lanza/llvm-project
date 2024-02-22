@@ -94,6 +94,7 @@ tools = [
     "clang-tblgen",
     "clang-scan-deps",
     "clang-installapi",
+    "gatorade",
     "opt",
     "llvm-ifs",
     "yaml2obj",

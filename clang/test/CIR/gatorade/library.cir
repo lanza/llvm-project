@@ -1,4 +1,5 @@
-// RUN: cir-opt %s | FileCheck %s
+// RUN: gatorade %s | FileCheck %s
+// only checking that it parses and prints
 
 !s32i = !cir.int<s, 32>
 module {
