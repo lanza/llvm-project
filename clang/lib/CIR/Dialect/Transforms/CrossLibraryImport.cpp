@@ -22,6 +22,7 @@
 #include "clang/CIR/Dialect/Passes.h"
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -178,12 +179,40 @@ void CrossLibraryImportPass::runOnOperation() {
 
   for (auto &[constDef, decls] : defToDeclMap) {
     auto def = *const_cast<FuncOp *>(&constDef);
-    if (decls.empty()) {
+    if (decls.empty() && !def.getJni()) {
       def->setAttr("linkage",
                    GlobalLinkageKindAttr::get(
                        def->getContext(), GlobalLinkageKind::PrivateLinkage));
     }
   }
+
+  bool changed = false;
+  do {
+    changed = false;
+    llvm::DenseSet<FuncOp> eraseList;
+    for (auto &lib : theModule) {
+      auto asLibrary = llvm::dyn_cast<LibraryOp>(lib);
+      for (auto &element : asLibrary) {
+        auto fn = llvm::dyn_cast<FuncOp>(element);
+        if (!fn)
+          continue;
+
+        if (fn.getJni())
+          continue;
+
+        auto uses_or_none = SymbolTable::getSymbolUses(fn, fn->getParentOp());
+
+        assert(uses_or_none.has_value());
+        auto uses = uses_or_none.value();
+
+        if (uses.begin() == uses.end()) {
+          eraseList.insert(fn);
+          changed = true;
+        }
+      }
+    }
+    llvm::for_each(eraseList, [](auto fn) { fn.erase(); });
+  } while (changed);
 }
 
 std::unique_ptr<Pass> mlir::createCrossLibraryImportPass() {
