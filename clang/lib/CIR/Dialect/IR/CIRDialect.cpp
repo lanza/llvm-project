@@ -40,6 +40,7 @@
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/InliningUtils.h"
 
 using namespace mlir;
 
@@ -50,6 +51,35 @@ using namespace mlir;
 #include "clang/CIR/Interfaces/ASTAttrInterfaces.h"
 #include "clang/CIR/Interfaces/CIROpInterfaces.h"
 #include <clang/CIR/MissingFeatures.h>
+
+//===----------------------------------------------------------------------===//
+// CIRInlinerInterface
+//===----------------------------------------------------------------------===//
+
+struct CIRInlinerInterface : public DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  bool isLegalToInline(Operation *call, Operation *callable,
+                       bool wouldBeCloned) const final {
+    return true;
+  }
+
+  bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
+    return true;
+  }
+
+  bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
+    return true;
+  }
+
+  void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {
+    auto returnOp = cast<ReturnOp>(op);
+
+    assert(returnOp->getNumOperands() == valuesToRepl.size());
+    for (const auto &it : llvm::enumerate(returnOp.getOperands()))
+      valuesToRepl[it.index()].replaceAllUsesWith(it.value());
+  }
+};
 
 //===----------------------------------------------------------------------===//
 // CIR Dialect
@@ -125,7 +155,7 @@ void cir::CIRDialect::initialize() {
 #define GET_OP_LIST
 #include "clang/CIR/Dialect/IR/CIROps.cpp.inc"
       >();
-  addInterfaces<CIROpAsmDialectInterface>();
+  addInterfaces<CIRInlinerInterface, CIROpAsmDialectInterface>();
 }
 
 Operation *cir::CIRDialect::materializeConstant(mlir::OpBuilder &builder,

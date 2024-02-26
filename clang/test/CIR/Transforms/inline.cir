@@ -1,0 +1,25 @@
+// RUN: cir-opt %s -inline | FileCheck %s
+
+!s32i = !cir.int<s, 32>
+module {
+  cir.func no_proto @funcA() -> !s32i {
+    %0 = cir.call @funcB() : () -> !s32i
+    cir.return %0 : !s32i
+  }
+  cir.func no_proto @funcB() -> !s32i {
+    %0 = cir.const(#cir.int<5> : !s32i) : !s32i
+    cir.return %0 : !s32i
+  }
+}
+
+//      CHECK: !s32i = !cir.int<s, 32>
+// CHECK-NEXT: module {
+// CHECK-NEXT:   cir.func no_proto @funcA() -> !s32i {
+// CHECK-NEXT:     %0 = cir.const(#cir.int<5> : !s32i) : !s32i
+// CHECK-NEXT:     cir.return %0 : !s32i
+// CHECK-NEXT:   }
+// CHECK-NEXT:   cir.func no_proto @funcB() -> !s32i {
+// CHECK-NEXT:     %0 = cir.const(#cir.int<5> : !s32i) : !s32i
+// CHECK-NEXT:     cir.return %0 : !s32i
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
