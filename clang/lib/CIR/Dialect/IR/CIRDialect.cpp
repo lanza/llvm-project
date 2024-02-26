@@ -2262,6 +2262,7 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
   auto builtinNameAttr = getBuiltinAttrName(state.name);
   auto coroutineNameAttr = getCoroutineAttrName(state.name);
   auto lambdaNameAttr = getLambdaAttrName(state.name);
+  auto jniNameAttr = getJniAttrName(state.name);
   auto visNameAttr = getSymVisibilityAttrName(state.name);
   auto noProtoNameAttr = getNoProtoAttrName(state.name);
   auto visibilityNameAttr = getGlobalVisibilityAttrName(state.name);
@@ -2274,6 +2275,8 @@ ParseResult cir::FuncOp::parse(OpAsmParser &parser, OperationState &state) {
     state.addAttribute(coroutineNameAttr, parser.getBuilder().getUnitAttr());
   if (::mlir::succeeded(parser.parseOptionalKeyword(lambdaNameAttr.strref())))
     state.addAttribute(lambdaNameAttr, parser.getBuilder().getUnitAttr());
+  if (::mlir::succeeded(parser.parseOptionalKeyword(jniNameAttr.strref())))
+    state.addAttribute(jniNameAttr, parser.getBuilder().getUnitAttr());
   if (parser.parseOptionalKeyword(noProtoNameAttr).succeeded())
     state.addAttribute(noProtoNameAttr, parser.getBuilder().getUnitAttr());
 
@@ -2497,6 +2500,9 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
   if (getLambda())
     p << " lambda";
 
+  if (getJni())
+    p << "jni ";
+
   if (getNoProto())
     p << " no_proto";
 
@@ -2535,8 +2541,8 @@ void cir::FuncOp::print(OpAsmPrinter &p) {
       {getAliaseeAttrName(), getBuiltinAttrName(), getCoroutineAttrName(),
        getDsolocalAttrName(), getExtraAttrsAttrName(),
        getFunctionTypeAttrName(), getGlobalCtorAttrName(),
-       getGlobalDtorAttrName(), getLambdaAttrName(), getLinkageAttrName(),
-       getCallingConvAttrName(), getNoProtoAttrName(),
+       getGlobalDtorAttrName(), getLambdaAttrName(), getJniAttrName(),
+       getLinkageAttrName(), getCallingConvAttrName(), getNoProtoAttrName(),
        getSymVisibilityAttrName(), getArgAttrsAttrName(), getResAttrsAttrName(),
        getComdatAttrName(), getGlobalVisibilityAttrName(),
        getAnnotationsAttrName()});

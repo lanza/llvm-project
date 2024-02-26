@@ -3396,6 +3396,10 @@ def FuncOp : CIR_Op<"func", [
     allow callsites to make certain assumptions about the real function nature
     when writing analysis. The verifier should, but do act on this keyword yet.
 
+    The `jni` translates to this function being a Java Native Interface function.
+    For gatorade, this marks it as a root for the library that can't be removed
+    or moved from the library.
+
     The `no_proto` keyword is used to identify functions that were declared
     without a prototype and, consequently, may contain calls with invalid
     arguments and undefined behavior.
@@ -3445,6 +3449,7 @@ def FuncOp : CIR_Op<"func", [
                        UnitAttr:$builtin,
                        UnitAttr:$coroutine,
                        UnitAttr:$lambda,
+                       UnitAttr:$jni,
                        UnitAttr:$no_proto,
                        UnitAttr:$dsolocal,
                        DefaultValuedAttr<GlobalLinkageKind,
