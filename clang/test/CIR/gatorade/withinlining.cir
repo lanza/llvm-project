@@ -58,6 +58,10 @@ module {
 // CHECK-NEXT:       %1 = cir.binop(add, %0, %0) : !s32i
 // CHECK-NEXT:       cir.return %1 : !s32i
 // CHECK-NEXT:     }
+// CHECK-NEXT:     cir.func no_proto cir_private @funcB1() -> !s32i {
+// CHECK-NEXT:       %0 = cir.const(#cir.int<5> : !s32i) : !s32i
+// CHECK-NEXT:       cir.return %0 : !s32i
+// CHECK-NEXT:     }
 // CHECK-NEXT:     cir.func no_proto @funcB2() -> !s32i {
 // CHECK-NEXT:       %0 = cir.const(#cir.int<5> : !s32i) : !s32i
 // CHECK-NEXT:       cir.return %0 : !s32i
@@ -68,6 +72,7 @@ module {
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT:   cir.library @c {
+// CHECK-NEXT:     cir.func no_proto private @funcB1(...) -> !s32i
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 

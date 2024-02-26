@@ -203,4 +203,16 @@ def CrossLibraryImport : Pass<"cir-cross-library-import"> {
   ];
 }
 
+def DCE : Pass<"cir-dce"> {
+  let summary = "Eliminate dead functions";
+  let description = [{}];
+  let constructor = "mlir::createDCEPass()";
+  let dependentDialects = ["cir::CIRDialect"];
+
+  let options = [
+    ListOption<"test", "test2", "std::string",
+      "Test desc test something else", "llvm::cl::ZeroOrMore">,
+  ];
+}
+
 #endif // MLIR_DIALECT_CIR_PASSES

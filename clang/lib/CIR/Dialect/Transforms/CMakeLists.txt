@@ -7,6 +7,7 @@ add_clang_library(MLIRCIRTransforms
   CIRCanonicalize.cpp
   CIRSimplify.cpp
   CrossLibraryImport.cpp
+  DCE.cpp
   DropAST.cpp
   IdiomRecognizer.cpp
   LibOpt.cpp
