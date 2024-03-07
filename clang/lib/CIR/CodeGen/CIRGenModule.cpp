@@ -1217,7 +1217,8 @@ generateStringLiteral(mlir::Location loc, mlir::TypedAttr C,
 mlir::cir::GlobalViewAttr
 CIRGenModule::getAddrOfConstantStringFromLiteral(const StringLiteral *S,
                                                  StringRef Name) {
-  CharUnits Alignment = astCtx.getAlignOfGlobalVarInChars(S->getType());
+  CharUnits Alignment =
+      astCtx.getAlignOfGlobalVarInChars(S->getType(), /*VD=*/nullptr);
 
   mlir::Attribute C = getConstantArrayFromStringLiteral(S);
 
