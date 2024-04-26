@@ -883,6 +883,12 @@ public:
     addConversion([](mlir::FloatType type) -> std::optional<mlir::Type> {
       return type; // Float types are already MLIR native
     });
+    addConversion([&](mlir::cir::SingleType type) -> std::optional<mlir::Type> {
+      return mlir::Float32Type::get(type.getContext());
+    });
+    addConversion([&](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
+      return mlir::Float64Type::get(type.getContext());
+    });
   }
 };
 
@@ -905,7 +911,7 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                CIRAllocaOpLowering, CIRLoadOpLowering, CIRStoreOpLowering,
                CIRCallOpLowering, CIRCastOpLowering, CIRBrOpLowering,
                CIRBrCondOpLowering, CIRTernaryOpLowering,
-               CIRYieldOpLowering, CIRLoopOpInterfaceLowering>(converter, context);
+               CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering>(converter, context);
 
   if (mlir::failed(
           mlir::applyPartialConversion(theModule, target, std::move(patterns))))
