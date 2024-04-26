@@ -176,11 +176,8 @@ public:
     } else if (auto cirIntAttr = mlir::dyn_cast<mlir::cir::IntAttr>(op.getValue())) {
       value = rewriter.getIntegerAttr(ty, cirIntAttr.getValue());
     } else if (mlir::isa<mlir::cir::CIRFPTypeInterface>(op.getType())) {
-      auto convertedTy = getTypeConverter()->convertType(op.getType());
-      // Use ty instead of convertedTy - they should be the same
       value = rewriter.getFloatAttr(
-          ty,
-          mlir::cast<mlir::cir::FPAttr>(op.getValue()).getValue());
+          ty, mlir::cast<mlir::cir::FPAttr>(op.getValue()).getValue());
     } else {
       return mlir::LogicalResult::failure();
     }
@@ -674,6 +671,12 @@ static mlir::TypeConverter prepareTypeConverter() {
   converter.addConversion([&](mlir::cir::DoubleType type) -> mlir::Type {
     return mlir::Float64Type::get(type.getContext());
   });
+  converter.addConversion([&](mlir::cir::FP80Type type) -> mlir::Type {
+    return mlir::Float80Type::get(type.getContext());
+  });
+  converter.addConversion([&](mlir::cir::LongDoubleType type) -> mlir::Type {
+    return converter.convertType(type.getUnderlying());
+  });
   converter.addConversion([&](mlir::cir::ArrayType type) -> mlir::Type {
     auto elementType = converter.convertType(type.getEltType());
     if (!elementType)
@@ -888,6 +891,12 @@ public:
     });
     addConversion([&](mlir::cir::DoubleType type) -> std::optional<mlir::Type> {
       return mlir::Float64Type::get(type.getContext());
+    });
+    addConversion([&](mlir::cir::FP80Type type) -> std::optional<mlir::Type> {
+      return mlir::Float80Type::get(type.getContext());
+    });
+    addConversion([&](mlir::cir::LongDoubleType type) -> std::optional<mlir::Type> {
+      return convertType(type.getUnderlying());
     });
   }
 };
