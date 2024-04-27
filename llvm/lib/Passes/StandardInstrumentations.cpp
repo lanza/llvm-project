@@ -42,6 +42,7 @@
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -136,6 +137,16 @@ static cl::opt<std::string> IRDumpDirectory(
              "-print-[before|after]{-all} options will be dumped into "
              "files in this directory rather than written to stderr"),
     cl::Hidden, cl::value_desc("filename"));
+
+static cl::opt<bool> PrintInstructionCount(
+    "print-instruction-count",
+    cl::desc("Print the instruction count after each pass"), cl::Hidden,
+    cl::init(false));
+
+static cl::opt<bool> PrintFunctionInstructionCount(
+    "print-function-instruction-count",
+    cl::desc("Print the instruction count for each function after each pass"),
+    cl::Hidden, cl::init(false));
 
 template <typename IRUnitT> static const IRUnitT *unwrapIR(Any IR) {
   const IRUnitT **IRPtr = llvm::any_cast<const IRUnitT *>(&IR);
@@ -1059,6 +1070,36 @@ bool OptNoneInstrumentation::shouldRun(StringRef PassID, Any IR) {
            << " due to optnone attribute\n";
   }
   return ShouldRun;
+}
+
+void InstructionCountInstrumentation::registerCallbacks(
+    PassInstrumentationCallbacks &PIC) {
+  if (PrintInstructionCount || PrintFunctionInstructionCount)
+    PIC.registerAfterPassCallback(
+        [this](StringRef P, Any IR, const PreservedAnalyses &PassPA) {
+          this->run(P, IR);
+        });
+}
+
+void InstructionCountInstrumentation::run(StringRef PassID, Any IR) {
+  const auto *Module = unwrapIR<llvm::Module>(IR);
+  if (!Module)
+    return;
+
+  unsigned Count = 0;
+
+  for (auto const &Fn : *Module) {
+    Count += Fn.getInstructionCount();
+  }
+
+  dbgs() << "Instruction Count After " << PassID << ": " << Count << '\n';
+
+  if (PrintFunctionInstructionCount) {
+    for (auto const &Fn : *Module) {
+      auto Count = Fn.getInstructionCount();
+      dbgs() << "    " << Fn.getName() << ": " << Count << '\n';
+    }
+  }
 }
 
 bool OptPassGateInstrumentation::shouldRun(StringRef PassName, Any IR) {
@@ -2432,9 +2473,8 @@ void DotCfgChangeReporter::registerCallbacks(
 StandardInstrumentations::StandardInstrumentations(
     LLVMContext &Context, bool DebugLogging, bool VerifyEach,
     PrintPassOptions PrintPassOpts)
-    : PrintPass(DebugLogging, PrintPassOpts),
-      OptNone(DebugLogging),
-      OptPassGate(Context),
+    : PrintPass(DebugLogging, PrintPassOpts), OptNone(DebugLogging),
+      InstructionCount(DebugLogging), OptPassGate(Context),
       PrintChangedIR(PrintChanged == ChangePrinter::Verbose),
       PrintChangedDiff(PrintChanged == ChangePrinter::DiffVerbose ||
                            PrintChanged == ChangePrinter::ColourDiffVerbose,
@@ -2518,6 +2558,8 @@ void StandardInstrumentations::registerCallbacks(
   PrintCrashIR.registerCallbacks(PIC);
   if (MAM)
     PreservedCFGChecker.registerCallbacks(PIC, *MAM);
+
+  InstructionCount.registerCallbacks(PIC);
 
   // TimeProfiling records the pass running time cost.
   // Its 'BeforePassCallback' can be appended at the tail of all the

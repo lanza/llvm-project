@@ -106,6 +106,17 @@ public:
   void registerCallbacks(PassInstrumentationCallbacks &PIC);
 };
 
+class InstructionCountInstrumentation {
+public:
+  InstructionCountInstrumentation(bool DebugLogging)
+      : DebugLogging(DebugLogging) {}
+  void registerCallbacks(PassInstrumentationCallbacks &PIC);
+
+private:
+  void run(StringRef PassID, Any IR);
+  bool DebugLogging;
+};
+
 struct PrintPassOptions {
   /// Print adaptors and pass managers.
   bool Verbose = false;
@@ -585,6 +596,7 @@ class StandardInstrumentations {
   TimePassesHandler TimePasses;
   TimeProfilingPassesHandler TimeProfilingPasses;
   OptNoneInstrumentation OptNone;
+  InstructionCountInstrumentation InstructionCount;
   OptPassGateInstrumentation OptPassGate;
   PreservedCFGCheckerInstrumentation PreservedCFGChecker;
   IRChangedPrinter PrintChangedIR;
