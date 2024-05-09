@@ -1255,7 +1255,11 @@ void ConvertCIRToMLIRPass::runOnOperation() {
                CIRCallOpLowering, CIRCastOpLowering, CIRBrOpLowering,
                CIRBrCondOpLowering, CIRTernaryOpLowering,
                CIRYieldOpLowering, CIRLoopOpInterfaceLowering, CIRCosOpLowering,
-               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRIfOpLowering>(converter, context);
+               CIRGlobalOpLowering, CIRGetGlobalOpLowering, CIRIfOpLowering,
+               CIRPtrStrideOpLowering, CIRSqrtOpLowering, CIRCeilOpLowering,
+               CIRExp2OpLowering, CIRExpOpLowering, CIRFAbsOpLowering,
+               CIRFloorOpLowering, CIRLog10OpLowering, CIRLog2OpLowering,
+               CIRLogOpLowering, CIRRoundOpLowering, CIRSinOpLowering>(converter, context);
 
   if (mlir::failed(mlir::applyFullConversion(theModule, target, 
                                              std::move(patterns)))) {
