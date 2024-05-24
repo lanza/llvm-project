@@ -39,6 +39,8 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "clang/CIR/Dialect/IR/CIRDialect.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/LowerToMLIR.h"
 #include "clang/CIR/Passes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "clang/CIR/Dialect/IR/CIRTypes.h"
@@ -783,7 +785,7 @@ public:
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto *parentOp = op->getParentOp();
     return llvm::TypeSwitch<mlir::Operation *, mlir::LogicalResult>(parentOp)
-        .Case<mlir::scf::IfOp>([&](auto) {
+        .Case<mlir::scf::IfOp, mlir::scf::ForOp>([&](auto) {
           rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(
               op, adaptor.getOperands());
           return mlir::success();
@@ -1239,16 +1241,21 @@ void ConvertCIRToMLIRPass::runOnOperation() {
   mlir::ModuleOp theModule = getOperation();
 
   auto converter = prepareTypeConverter();
-  mlir::ConversionTarget target(*context);
+  
+  mlir::RewritePatternSet patterns(&getContext());
 
-  target.addLegalDialect<mlir::BuiltinDialect, mlir::func::FuncDialect,
-                         mlir::memref::MemRefDialect, mlir::arith::ArithDialect,
-                         mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect,
+  populateCIRLoopToSCFConversionPatterns(patterns, converter);
+  populateCIRToMLIRConversionPatterns(patterns, converter);
+
+  mlir::ConversionTarget target(getContext());
+  target.addLegalOp<mlir::ModuleOp>();
+  target.addLegalDialect<mlir::affine::AffineDialect, mlir::arith::ArithDialect,
+                         mlir::memref::MemRefDialect, mlir::func::FuncDialect,
+                         mlir::scf::SCFDialect, mlir::cf::ControlFlowDialect,
                          mlir::math::MathDialect>();
 
   target.addIllegalDialect<mlir::cir::CIRDialect>();
-
-  mlir::RewritePatternSet patterns(context);
+  target.addLegalOp<mlir::cir::ScopeOp, mlir::cir::YieldOp>();
   patterns.add<CIRReturnLowering, CIRFuncOpLowering, CIRConstantOpLowering,
                CIRUnaryOpLowering, CIRBinOpLowering, CIRCmpOpLowering,
                CIRAllocaOpLowering, CIRLoadOpLowering, CIRStoreOpLowering,
