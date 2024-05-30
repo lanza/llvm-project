@@ -60,7 +60,7 @@ void CallConvLoweringPass::runOnOperation() {
 
   // Configure rewrite to ignore new ops created during the pass.
   GreedyRewriteConfig config;
-  config.strictMode = GreedyRewriteStrictness::ExistingOps;
+  config.setStrictness(GreedyRewriteStrictness::ExistingOps);
 
   // Apply patterns.
   if (failed(applyOpPatternsAndFold(ops, std::move(patterns), config)))
