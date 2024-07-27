@@ -2466,7 +2466,7 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
     assert(landingPad && "expected two successors");
     auto tryCall = dyn_cast<mlir::cir::TryCallOp>(op);
     assert(tryCall && "regular calls do not branch");
-    state << tryCall.getCont();
+    state << ' ' << tryCall.getCont();
     if (!tryCall.getContOperands().empty()) {
       state << "(";
       state << tryCall.getContOperands();
@@ -2493,6 +2493,7 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
   elidedAttrs.push_back("ast");
   elidedAttrs.push_back("extra_attrs");
   elidedAttrs.push_back("exception");
+  elidedAttrs.push_back("operandSegmentSizes");
 
   state.printOptionalAttrDict(op->getAttrs(), elidedAttrs);
   state << ' ' << ":";
@@ -2581,8 +2582,13 @@ void TryCallOp::print(::mlir::OpAsmPrinter &state) {
 
 mlir::SuccessorOperands TryCallOp::getSuccessorOperands(unsigned index) {
   assert(index < getNumSuccessors() && "invalid successor index");
-  return SuccessorOperands(index == 0 ? getContOperandsMutable()
-                                      : getLandingPadOperandsMutable());
+  if (index == 0)
+    return SuccessorOperands(getContOperandsMutable());
+  if (index == 1)
+    return SuccessorOperands(getLandingPadOperandsMutable());
+
+  // index == 2
+  return SuccessorOperands(getArgOperandsMutable());
 }
 
 //===----------------------------------------------------------------------===//
