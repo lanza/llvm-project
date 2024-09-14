@@ -1241,9 +1241,6 @@ void TryOp::build(
   // Try body region
   Region *tryBodyRegion = result.addRegion();
 
-  // Try cleanup region
-  result.addRegion();
-
   // Create try body region and set insertion point
   builder.createBlock(tryBodyRegion);
   tryBodyBuilder(builder, result.location);
@@ -1261,7 +1258,7 @@ void TryOp::getSuccessorRegions(mlir::RegionBranchPoint point,
 
   // If the condition isn't constant, both regions may be executed.
   regions.push_back(RegionSuccessor(&getTryRegion()));
-  regions.push_back(RegionSuccessor(&getCleanupRegion()));
+
   // FIXME: optimize, ideas include:
   // - If we know a target function never throws a specific type, we can
   //   remove the catch handler.
@@ -3015,7 +3012,7 @@ void printCallCommon(Operation *op, mlir::Value indirectCallee,
     auto call = dyn_cast<mlir::cir::CallOp>(op);
     assert(call && "expected regular call");
     if (!call.getCleanup().empty()) {
-      state << "cleanup ";
+      state << " cleanup ";
       state.printRegion(call.getCleanup());
     }
   }
