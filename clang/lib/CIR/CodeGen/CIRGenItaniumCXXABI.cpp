@@ -17,17 +17,24 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CIRGenBuilder.h"
 #include "CIRGenCXXABI.h"
 #include "CIRGenCleanup.h"
 #include "CIRGenFunctionInfo.h"
 #include "ConstantInitBuilder.h"
+#include "mlir/IR/Block.h"
+#include "mlir/IR/BuiltinAttributes.h"
 
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/Linkage.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CIR/Dialect/IR/CIRAttrs.h"
+#include "clang/CIR/Dialect/IR/CIROpsEnums.h"
+#include "clang/CIR/Dialect/IR/CIRTypes.h"
+#include "clang/CIR/MissingFeatures.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace cir;
@@ -172,9 +179,11 @@ public:
                            CXXDtorType Type, bool ForVirtualBase,
                            bool Delegating, Address This,
                            QualType ThisTy) override;
+  void buildGuardedInit(CIRGenFunction &cgf, const VarDecl &varDecl,
+                        mlir::cir::GlobalOp globalOp,
+                        bool performInit) override;
   void registerGlobalDtor(CIRGenFunction &CGF, const VarDecl *D,
-                          mlir::cir::FuncOp dtor,
-                          mlir::Value Addr) override;
+                          mlir::cir::FuncOp dtor, mlir::Value Addr) override;
   virtual void buildRethrow(CIRGenFunction &CGF, bool isNoReturn) override;
   virtual void buildThrow(CIRGenFunction &CGF, const CXXThrowExpr *E) override;
   CatchTypeInfo
@@ -2142,6 +2151,124 @@ void CIRGenItaniumCXXABI::buildDestructorCall(
 
   CGF.buildCXXDestructorCall(GD, Callee, This.getPointer(), ThisTy, VTT, VTTTy,
                              nullptr);
+}
+
+/// The ARM code here follows the Itanium code closely enough that we just
+/// special-case it at particular places.
+void CIRGenItaniumCXXABI::buildGuardedInit(CIRGenFunction &cgf,
+                                           const VarDecl &varDecl,
+                                           mlir::cir::GlobalOp globalOp,
+                                           bool performInit) {
+  CIRGenBuilderTy &builder = cgf.getBuilder();
+
+  // Inline variables that weren't instantiated from variable templates have
+  // partially-ordered initialization within their translation unit.
+  bool nonTemplateInline =
+      varDecl.isInline() &&
+      !isTemplateInstantiation(varDecl.getTemplateSpecializationKind());
+
+  // We only need to use thread-safe statics for local non-TLS variables and
+  // inline variables; other global initialization is always single-threaded or
+  // (through lazy dynamic loading in multiple threads) unsequenced.
+  bool threadsafe = getContext().getLangOpts().ThreadsafeStatics &&
+                    (varDecl.isLocalVarDecl() || nonTemplateInline) &&
+                    !varDecl.getTLSKind();
+
+  // If we have a global variable with internal linkage and thread-safe statics
+  // are disabled, we can just let the guard variable be of type i8.
+  bool useInt8GuardVariable = !threadsafe && globalOp.hasInternalLinkage();
+
+  mlir::cir::IntType guardTy;
+  CharUnits guardAlignment;
+  if (useInt8GuardVariable) {
+    guardTy = cgf.SInt8Ty;
+    guardAlignment = CharUnits::One();
+  } else {
+    // Guard variables are 64 bits in the generic ABI and size width on ARM
+    // (i.e. 32-bit on AArch32, 64-bit on AArch64).
+    if (UseARMGuardVarABI) {
+      llvm_unreachable("NYI");
+    } else {
+      llvm_unreachable("NYI");
+    }
+  }
+  // mlir::cir::PointerType guardPtrTy =
+  // mlir::cir::PointerType::get(,cgf.CGM.getDataLayout().getDefaultGlobalsAddressSpace());
+  llvm_unreachable("NYI");
+
+  // Create the guard variable if we don't already have it (as we might if we're
+  // double-emitting this function body).
+  mlir::cir::GlobalOp guard = CGM.getStaticLocalDeclGuardAddress(&varDecl);
+
+  if (!guard) {
+    // Mangle the name for the guard.
+    SmallString<256> guardName;
+    {
+      llvm::raw_svector_ostream out(guardName);
+      getMangleContext().mangleStaticGuardVariable(&varDecl, out);
+    }
+
+    // Create the guard variable with a zero-initializer.
+    // Just absorb linkage, visibility and dll storage class from the guarded
+    // variable.
+    guard =
+        CGM.createGlobalOp(CGM, CGM.getLoc(varDecl.getLocation()), guardName,
+                           guardTy, false, {}, nullptr, globalOp.getLinkage());
+    // TODO(CIR): this needs thee init
+    guard.setDSOLocal(globalOp.isDSOLocal());
+    guard.setVisibility(globalOp.getVisibility());
+    assert(!MissingFeatures::setDLLStorageClass());
+    // guard.setDLLStorageClass(globalOp.getDLLStorageClass());
+    // If the variable is thread-local, so is its guard variable.
+    assert(!MissingFeatures::threadLocal());
+    // guard.setThreadLocalMode(globalOp.getThreadLocalMode());
+    guard.setAlignment(guardAlignment.getAsAlign().value());
+
+    // The ABI says: "It is suggested that it be emitted in the same COMDAT
+    // group as the associated data object." In practice, this doesn't work for
+    // non-ELF and non-Wasm object formats, so only do it for ELF and Wasm.
+    assert(!MissingFeatures::setComdat());
+
+    CGM.setStaticLocalDeclGuardAddress(&varDecl, guard);
+  }
+
+  mlir::Value getGuard =
+      CGM.getBuilder().createGetGlobal(guard, /*threadLocal*/ false);
+  Address guardAddr = Address(getGuard, guard.getSymType(), guardAlignment);
+
+  // Test whether the variable has completed initialization.
+  //
+  // Itanium C++ ABI 3.3.2:
+  //   The following is pseudo-code showing how these functions can be used:
+  //     if (obj_guard.first_byte == 0) {
+  //       if ( __cxa_guard_acquire (&obj_guard) ) {
+  //         try {
+  //           ... initialize the object ...;
+  //         } catch (...) {
+  //           __cxa_guard_abort (&obj_guard);
+  //           throw;
+  //         }
+  //         ... queue object destructor with __cxa_atexit() ...;
+  //         __cxa_guard_release (&obj_guard);
+  //       }
+  //     }
+  //
+  // If threadsafe statics are enabled, but we don't have inline atomics, just
+  // call __cxa_guard_acquire unconditionally.  The "inline" check isn't
+  // actually inline, and the user might not expect calls to __atomic libcalls.
+
+  unsigned maxInlineWidthInbits = cgf.getTarget().getMaxAtomicInlineWidth();
+  // TODO(CIR): block name?
+  mlir::Block *endBlock = new mlir::Block();
+  if (!threadsafe || maxInlineWidthInbits) {
+    llvm_unreachable("NYI");
+  }
+
+  // The semantics of dynamic initialization of variables with static or thread
+  // storage duration depends on whether they are declared at block-scope. The
+  // initialization of such variables at block-scope can be aborted with an
+  // exception and later retried (per C++20 [stmt.dcl]p4), and recursive entry
+  // to their initialization has undefined behavior.
 }
 
 void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,

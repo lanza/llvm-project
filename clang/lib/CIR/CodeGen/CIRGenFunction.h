@@ -890,6 +890,13 @@ public:
 
   LValue buildPointerToDataMemberBinaryExpr(const BinaryOperator *E);
 
+  /// Emit code in this function to perform a guarded variable initialization.
+  /// Guarded initializations are used when it's not possible to prove that
+  /// initialization will be done exactly once, e.g. with a static local
+  /// variable or a static data member of a class template.
+  void buildCXXGuardedInit(const VarDecl &varDecl, mlir::cir::GlobalOp globalOp,
+                           bool performInit);
+
   /// TODO: Add TBAAAccessInfo
   Address buildCXXMemberDataPointerAddress(
       const Expr *E, Address base, mlir::Value memberPtr,
@@ -1404,8 +1411,9 @@ public:
   void buildVarDecl(const clang::VarDecl &D);
 
   mlir::cir::GlobalOp
-  addInitializerToStaticVarDecl(const VarDecl &D, mlir::cir::GlobalOp GV,
-                                mlir::cir::GetGlobalOp GVAddr);
+  addInitializerToStaticVarDecl(const VarDecl &varDecl,
+                                mlir::cir::GlobalOp globalOp,
+                                mlir::cir::GetGlobalOp getGlobalOp);
 
   void buildStaticVarDecl(const VarDecl &D,
                           mlir::cir::GlobalLinkageKind Linkage);
