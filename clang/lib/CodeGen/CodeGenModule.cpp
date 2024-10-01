@@ -6807,8 +6807,11 @@ void CodeGenModule::EmitDeclContext(const DeclContext *DC) {
   }
 }
 
+int topLevelDeclsEntered = 0;
+
 /// EmitTopLevelDecl - Emit code for a single top level declaration.
 void CodeGenModule::EmitTopLevelDecl(Decl *D) {
+  topLevelDeclsEntered += 1;
   // Ignore dependent declarations.
   if (D->isTemplated())
     return;

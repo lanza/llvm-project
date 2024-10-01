@@ -1698,8 +1698,11 @@ CIRGenModule::getAddrOfGlobalTemporary(const MaterializeTemporaryExpr *expr,
   return cv;
 }
 
+extern int topLevelDeclsEntered;
+
 // Emit code for a single top level declaration.
 void CIRGenModule::buildTopLevelDecl(Decl *decl) {
+  topLevelDeclsEntered += 1;
   // Ignore dependent declarations
   if (decl->isTemplated())
     return;

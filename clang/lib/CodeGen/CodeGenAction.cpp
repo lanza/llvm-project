@@ -60,6 +60,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "codegenaction"
 
+extern int topLevelDeclsEntered;
+
 namespace clang {
 class BackendConsumer;
 class ClangDiagnosticHandler final : public DiagnosticHandler {
@@ -285,6 +287,8 @@ void BackendConsumer::HandleTranslationUnit(ASTContext &C) {
       if (LLVMIRGenerationRefCount == 0)
         LLVMIRGeneration.stopTimer();
     }
+
+    dbgs() << "Top Level Decls Entered: " << topLevelDeclsEntered << '\n';
 
     IRGenFinished = true;
   }

@@ -199,6 +199,8 @@ void llvm::install_out_of_memory_new_handler() {
 }
 #endif
 
+__attribute__((weak))
+extern int topLevelDeclsEntered = 0;
 void llvm::llvm_unreachable_internal(const char *msg, const char *file,
                                      unsigned line) {
   // This code intentionally doesn't call the ErrorHandler callback, because
@@ -210,6 +212,7 @@ void llvm::llvm_unreachable_internal(const char *msg, const char *file,
   if (file)
     dbgs() << " at " << file << ":" << line;
   dbgs() << "!\n";
+  dbgs() << "Top Level Decls Entered: " << topLevelDeclsEntered << '\n';
   abort();
 #ifdef LLVM_BUILTIN_UNREACHABLE
   // Windows systems and possibly others don't declare abort() to be noreturn,
