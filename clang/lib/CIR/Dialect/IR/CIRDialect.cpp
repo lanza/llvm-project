@@ -531,6 +531,11 @@ LogicalResult cir::CastOp::verify() {
       return success();
     }
 
+    // Handle the data member pointer types.
+    if (mlir::isa<cir::DataMemberType>(srcType) &&
+        mlir::isa<cir::DataMemberType>(resType))
+      return success();
+
     // This is the only cast kind where we don't want vector types to decay
     // into the element type.
     if ((!mlir::isa<cir::VectorType>(getSrc().getType()) ||
@@ -704,6 +709,13 @@ LogicalResult cir::CastOp::verify() {
         !mlir::isa<cir::CIRFPTypeInterface>(resComplexTy.getElementTy()))
       return emitOpError()
              << "requires !cir.complex<!cir.float> type for result";
+    return success();
+  }
+  case cir::CastKind::member_ptr_to_bool: {
+    if (!mlir::isa<cir::DataMemberType>(srcType))
+      return emitOpError() << "requires !cir.data_member type for source";
+    if (!mlir::isa<cir::BoolType>(resType))
+      return emitOpError() << "requires !cir.bool type for result";
     return success();
   }
   }
