@@ -14,6 +14,7 @@
 #define LLVM_CODEGEN_TARGETFRAMELOWERING_H
 
 #include "llvm/ADT/BitVector.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/Support/TypeSize.h"
@@ -263,10 +264,10 @@ public:
   /// saved registers and returns true if it isn't possible / profitable to do
   /// so by issuing a series of store instructions via
   /// storeRegToStackSlot(). Returns false otherwise.
-  virtual bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator MI,
-                                         ArrayRef<CalleeSavedInfo> CSI,
-                                         const TargetRegisterInfo *TRI) const {
+  virtual bool spillCalleeSavedRegisters(
+      MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+      ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI,
+      ProfileSummaryInfo *PSI = nullptr) const {
     return false;
   }
 

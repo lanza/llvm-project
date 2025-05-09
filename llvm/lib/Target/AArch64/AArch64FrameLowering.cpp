@@ -215,6 +215,7 @@
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -246,6 +247,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/XRay/Profile.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -332,12 +334,14 @@ static Register findScratchNonCalleeSaveRegister(MachineBasicBlock *MBB);
 /// for the size optimization. If possible, a frame helper call is injected.
 /// When Exit block is given, this check is for epilog.
 bool AArch64FrameLowering::homogeneousPrologEpilog(
-    MachineFunction &MF, MachineBasicBlock *Exit) const {
+    MachineFunction &MF, MachineBasicBlock *Exit, ProfileSummaryInfo *PSI) const {
   if (!MF.getFunction().hasMinSize())
     return false;
   if (!EnableHomogeneousPrologEpilog)
     return false;
   if (EnableRedZone)
+    return false;
+  if (PSI->isFunctionEntryHot(&MF.getFunction()))
     return false;
 
   // TODO: Window is supported yet.
@@ -3210,7 +3214,8 @@ static void computeCalleeSaveRegisterPairs(
 
 bool AArch64FrameLowering::spillCalleeSavedRegisters(
     MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-    ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI) const {
+    ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI,
+    ProfileSummaryInfo *PSI) const {
   MachineFunction &MF = *MBB.getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   AArch64FunctionInfo *AFI = MF.getInfo<AArch64FunctionInfo>();
@@ -3225,7 +3230,7 @@ bool AArch64FrameLowering::spillCalleeSavedRegisters(
   // last freeze.
   MRI.freezeReservedRegs();
 
-  if (homogeneousPrologEpilog(MF)) {
+  if (homogeneousPrologEpilog(MF, nullptr, PSI)) {
     auto MIB = BuildMI(MBB, MI, DL, TII.get(AArch64::HOM_Prolog))
                    .setMIFlag(MachineInstr::FrameSetup);
 

@@ -13,6 +13,7 @@
 #ifndef LLVM_LIB_TARGET_AARCH64_AARCH64FRAMELOWERING_H
 #define LLVM_LIB_TARGET_AARCH64_AARCH64FRAMELOWERING_H
 
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Support/TypeSize.h"
@@ -53,10 +54,10 @@ public:
                                           int64_t ObjectOffset, bool isFixed,
                                           bool isSVE, Register &FrameReg,
                                           bool PreferFP, bool ForSimm) const;
-  bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator MI,
-                                 ArrayRef<CalleeSavedInfo> CSI,
-                                 const TargetRegisterInfo *TRI) const override;
+  bool spillCalleeSavedRegisters(
+      MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+      ArrayRef<CalleeSavedInfo> CSI, const TargetRegisterInfo *TRI,
+      ProfileSummaryInfo *PSI = nullptr) const override;
 
   bool
   restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
@@ -135,7 +136,8 @@ private:
   /// instructions are emitted in place. When Exit block is given, this check is
   /// for epilog.
   bool homogeneousPrologEpilog(MachineFunction &MF,
-                               MachineBasicBlock *Exit = nullptr) const;
+                               MachineBasicBlock *Exit = nullptr,
+                               ProfileSummaryInfo *PSI = nullptr) const;
 
   /// Returns true if CSRs should be paired.
   bool producePairRegisters(MachineFunction &MF) const;

@@ -33,7 +33,8 @@ public:
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
                                  ArrayRef<CalleeSavedInfo> CSI,
-                                 const TargetRegisterInfo *TRI) const override;
+                                 const TargetRegisterInfo *TRI,
+                                 ProfileSummaryInfo *PSI) const override;
 
   bool
   restoreCalleeSavedRegisters(MachineBasicBlock &MBB,

@@ -24,6 +24,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ProfileSummaryInfo.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -166,6 +167,7 @@ void PEI::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<MachineLoopInfoWrapperPass>();
   AU.addPreserved<MachineDominatorTreeWrapperPass>();
   AU.addRequired<MachineOptimizationRemarkEmitterPass>();
+  AU.addRequired<ProfileSummaryInfoWrapperPass>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -595,14 +597,15 @@ static void updateLiveness(MachineFunction &MF) {
 
 /// Insert spill code for the callee-saved registers used in the function.
 static void insertCSRSaves(MachineBasicBlock &SaveBlock,
-                           ArrayRef<CalleeSavedInfo> CSI) {
+                           ArrayRef<CalleeSavedInfo> CSI,
+                           ProfileSummaryInfo &PSI) {
   MachineFunction &MF = *SaveBlock.getParent();
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
 
   MachineBasicBlock::iterator I = SaveBlock.begin();
-  if (!TFI->spillCalleeSavedRegisters(SaveBlock, I, CSI, TRI)) {
+  if (!TFI->spillCalleeSavedRegisters(SaveBlock, I, CSI, TRI, &PSI)) {
     for (const CalleeSavedInfo &CS : CSI) {
       // Insert the spill to the stack frame.
       MCRegister Reg = CS.getReg();
@@ -682,8 +685,9 @@ void PEI::spillCalleeSavedRegs(MachineFunction &MF) {
       if (!MFI.hasCalls())
         NumLeafFuncWithSpills++;
 
+      auto *PSI = &getAnalysis<ProfileSummaryInfoWrapperPass>().getPSI();
       for (MachineBasicBlock *SaveBlock : SaveBlocks)
-        insertCSRSaves(*SaveBlock, CSI);
+        insertCSRSaves(*SaveBlock, CSI, *PSI);
 
       // Update the live-in information of all the blocks up to the save point.
       updateLiveness(MF);
