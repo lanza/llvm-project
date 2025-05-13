@@ -845,19 +845,6 @@ OpFoldResult cir::UnaryOp::fold(FoldAdaptor adaptor) {
 }
 
 //===----------------------------------------------------------------------===//
-// DynamicCastOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult cir::DynamicCastOp::verify() {
-  auto resultPointeeTy = mlir::cast<cir::PointerType>(getType()).getPointee();
-  if (!mlir::isa<cir::VoidType, cir::RecordType>(resultPointeeTy))
-    return emitOpError()
-           << "cir.dyn_cast must produce a void ptr or record ptr";
-
-  return mlir::success();
-}
-
-//===----------------------------------------------------------------------===//
 // BaseDataMemberOp & DerivedDataMemberOp
 //===----------------------------------------------------------------------===//
 
@@ -3648,8 +3635,7 @@ LogicalResult cir::InsertMemberOp::verify() {
 //===----------------------------------------------------------------------===//
 
 LogicalResult cir::GetRuntimeMemberOp::verify() {
-  auto recordTy =
-      mlir::cast<RecordType>(mlir::cast<PointerType>(getAddr().getType()).getPointee());
+  auto recordTy = mlir::cast<RecordType>(getAddr().getType().getPointee());
   auto memberPtrTy = getMember().getType();
 
   if (recordTy != memberPtrTy.getClsTy()) {
