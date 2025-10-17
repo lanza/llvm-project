@@ -1,0 +1,4 @@
+load("@fbsource//tools/build_defs/third_party:metadata.bzl", "third_party_metadata")
+load(":METADATA.bzl", "METADATA")
+
+third_party_metadata(metadata = METADATA)
