@@ -12,15 +12,16 @@ import time
 import traceback
 
 import lit.Test
-import lit.util
 from lit.TestRunner import TestUpdaterException
+from lit.LitConfig import LitConfig
+from lit.Test import Test
 
 
 _lit_config = None
 _parallelism_semaphores = None
 
 
-def initialize(lit_config, parallelism_semaphores):
+def initialize(lit_config: LitConfig, parallelism_semaphores):
     """Copy data shared by all test executions into worker processes"""
     global _lit_config
     global _parallelism_semaphores
@@ -30,10 +31,10 @@ def initialize(lit_config, parallelism_semaphores):
     # We use the following strategy for dealing with Ctrl+C/KeyboardInterrupt in
     # subprocesses created by the multiprocessing.Pool.
     # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    _ = signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
-def execute(test):
+def execute(test: Test) -> Test:
     """Run one test in a multiprocessing.Pool
 
     Side effects in this function and functions it calls are not visible in the
@@ -63,7 +64,7 @@ def _get_parallelism_semaphore(test):
 
 
 # Do not inline! Directly used by LitTestCase.py
-def _execute(test, lit_config):
+def _execute(test: Test, lit_config: LitConfig):
     start = time.time()
     result = _execute_test_handle_errors(test, lit_config)
     result.elapsed = time.time() - start
@@ -72,7 +73,7 @@ def _execute(test, lit_config):
     return result
 
 
-def _execute_test_handle_errors(test, lit_config):
+def _execute_test_handle_errors(test: Test, lit_config: LitConfig):
     try:
         result = test.config.test_format.execute(test, lit_config)
         return _adapt_result(result)

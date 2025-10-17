@@ -1,6 +1,7 @@
 import itertools
 import os
 from json import JSONEncoder
+from typing import Final, overload, override
 
 from lit.BooleanExpression import BooleanExpression
 from lit.TestTimes import read_test_times
@@ -12,7 +13,7 @@ class ResultCode(object):
     """Test result codes."""
 
     # All result codes (including user-defined ones) in declaration order
-    _all_codes = []
+    _all_codes: list["ResultCode"] = []
 
     @staticmethod
     def all_codes():
@@ -20,9 +21,9 @@ class ResultCode(object):
 
     # We override __new__ and __getnewargs__ to ensure that pickling still
     # provides unique ResultCode objects in any particular instance.
-    _instances = {}
+    _instances: dict[str, "ResultCode"] = {}
 
-    def __new__(cls, name, label, isFailure):
+    def __new__(cls, name: str, label: str, isFailure: bool):
         res = cls._instances.get(name)
         if res is None:
             cls._instances[name] = res = super(ResultCode, cls).__new__(cls)
@@ -31,10 +32,10 @@ class ResultCode(object):
     def __getnewargs__(self):
         return (self.name, self.label, self.isFailure)
 
-    def __init__(self, name, label, isFailure):
-        self.name = name
-        self.label = label
-        self.isFailure = isFailure
+    def __init__(self, name: str, label: str, isFailure: bool):
+        self.name: str = name
+        self.label: str = label
+        self.isFailure: bool = isFailure
         ResultCode._all_codes.append(self)
 
     def __repr__(self):
@@ -59,7 +60,7 @@ XPASS = ResultCode("XPASS", "Unexpectedly Passed", True)
 
 
 class MetricValue(object):
-    def format(self):
+    def format(self) -> str:
         """
         format() -> str
 
@@ -79,12 +80,14 @@ class MetricValue(object):
 
 
 class IntMetricValue(MetricValue):
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, value: int):
+        self.value: int = value
 
+    @override
     def format(self):
         return str(self.value)
 
+    @override
     def todata(self):
         return self.value
 
@@ -160,8 +163,8 @@ class Result(object):
         self.output = output
         # The wall timing to execute the test, if timing.
         self.elapsed = elapsed
-        self.start = None
-        self.pid = None
+        self.start: float | None = None
+        self.pid: int | None = None
         # The metrics reported by this test.
         self.metrics = {}
         # The micro-test results reported by this test.
@@ -237,7 +240,7 @@ class Test:
     ):
         self.suite = suite
         self.path_in_suite = path_in_suite
-        self.config = config
+        self.config: "LitConfig" = config
         self.file_path = file_path
         self.gtest_json_file = gtest_json_file
 
