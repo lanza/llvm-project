@@ -1,0 +1,59 @@
+export_file(
+    name = "dicts.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "structs.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "selects.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "sets.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "unittest.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "shell.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "collections.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "paths.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "types.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "new_sets.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "partial.bzl",
+    visibility = ["PUBLIC"],
+)
+
+export_file(
+    name = "versions.bzl",
+    visibility = ["PUBLIC"],
+)

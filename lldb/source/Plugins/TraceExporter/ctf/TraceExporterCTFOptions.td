@@ -1,4 +1,4 @@
-include "../../../../source/Commands/OptionsBase.td"
+include "source/Commands/OptionsBase.td"
 
 let Command = "thread trace export ctf" in {
   def thread_trace_export_ctf: Option<"tid", "t">,

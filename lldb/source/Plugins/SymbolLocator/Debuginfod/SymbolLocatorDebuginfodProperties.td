@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "symbollocatordebuginfod" in {
   def ServerURLs : Property<"server-urls", "Array">,

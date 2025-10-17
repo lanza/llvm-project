@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "processkdp" in {
   def KDPPacketTimeout: Property<"packet-timeout", "UInt64">,

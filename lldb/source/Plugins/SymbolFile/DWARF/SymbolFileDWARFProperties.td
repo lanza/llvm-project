@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "symbolfiledwarf" in {
   def IgnoreIndexes: Property<"ignore-file-indexes", "Boolean">,

@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "language_cplusplus" in {
   def FunctionNameFormat: Property<"function-name-format", "FormatEntity">,

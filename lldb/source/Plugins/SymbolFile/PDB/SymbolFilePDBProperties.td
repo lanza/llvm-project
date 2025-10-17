@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "symbolfilepdb" in {
   def Reader: Property<"reader", "Enum">,

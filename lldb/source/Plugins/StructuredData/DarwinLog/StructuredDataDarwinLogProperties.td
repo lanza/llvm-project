@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "darwinlog" in {
   def EnableOnStartup: Property<"enable-on-startup", "Boolean">,

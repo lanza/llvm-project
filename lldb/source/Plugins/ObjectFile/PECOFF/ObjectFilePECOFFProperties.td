@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "objectfilepecoff" in {
   def ABI: Property<"abi", "Enum">,

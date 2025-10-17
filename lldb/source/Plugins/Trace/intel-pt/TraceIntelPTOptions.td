@@ -1,4 +1,4 @@
-include "../../../../source/Commands/OptionsBase.td"
+include "source/Commands/OptionsBase.td"
 
 // The information of the start commands here should match the description of
 // the intel-pt section of the jLLDBTraceStart packet in the

@@ -1,4 +1,4 @@
-include "../../../../include/lldb/Core/PropertiesBase.td"
+include "lldb/Core/PropertiesBase.td"
 
 let Definition = "platformdarwinkernel" in {
   def KextDirectories: Property<"kext-directories", "FileSpecList">,

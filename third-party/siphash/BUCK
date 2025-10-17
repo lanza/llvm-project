@@ -1,0 +1,9 @@
+cxx_library(
+    name = "siphash",
+    header_namespace = "",
+    exported_headers = {
+        "siphash/SipHash.h": "include/siphash/SipHash.h",
+    },
+    public_include_directories = ["include"],
+    visibility = ["PUBLIC"],
+)

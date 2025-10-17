@@ -1,0 +1,3 @@
+/bazel-*
+/buck-out
+/.buckconfig.local
