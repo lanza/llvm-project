@@ -2567,7 +2567,9 @@ static void pushTemporaryCleanup(CIRGenFunction &CGF,
     break;
 
   case SD_Automatic:
-    llvm_unreachable("SD_Automatic not implemented");
+    CGF.pushLifetimeExtendedDestroy(
+        NormalAndEHCleanup, ReferenceTemporary, E->getType(),
+        CIRGenFunction::destroyCXXObject, CGF.getLangOpts().Exceptions);
     break;
 
   case SD_Dynamic:
