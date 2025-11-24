@@ -2386,15 +2386,12 @@ void CIRGenItaniumCXXABI::registerGlobalDtor(CIRGenFunction &CGF,
   if (D->isNoDestroy(CGM.getASTContext()))
     return;
 
-  if (D->getTLSKind())
-    llvm_unreachable("NYI");
-
   // HLSL doesn't support atexit.
   if (CGM.getLangOpts().HLSL)
     llvm_unreachable("NYI");
 
-  // The default behavior is to use atexit. This is handled in lowering
-  // prepare. Nothing to be done for CIR here.
+  // The default behavior is to use atexit (or __cxa_thread_atexit for TLS).
+  // This is handled in lowering prepare. Nothing to be done for CIR here.
 }
 
 mlir::Value CIRGenItaniumCXXABI::getCXXDestructorImplicitParam(
