@@ -627,13 +627,20 @@ void CIRGenFunction::finishFunction(SourceLocation endLoc) {
       ReturnOp::create(builder, getLoc(endLoc),
                        llvm::ArrayRef(retVal.getResult()));
     } else {
-      // Non-void function falling off the end is undefined behavior
-      // At O0, emit trap for better debugging. At higher optimization levels,
-      // emit unreachable to allow optimizations.
-      if (CGM.getCodeGenOpts().OptimizationLevel == 0)
-        cir::TrapOp::create(builder, getLoc(endLoc));
-      else
-        cir::UnreachableOp::create(builder, getLoc(endLoc));
+      // Non-void function falling off the end is undefined behavior.
+      // However, respect -fno-strict-return for types with trivial destructors.
+      bool shouldEmitUnreachable = CGM.getCodeGenOpts().StrictReturn ||
+                                   !CGM.MayDropFunctionReturn(
+                                       fd->getASTContext(), fd->getReturnType());
+
+      if (shouldEmitUnreachable) {
+        // At O0, emit trap for better debugging. At higher optimization levels,
+        // emit unreachable to allow optimizations.
+        if (CGM.getCodeGenOpts().OptimizationLevel == 0)
+          cir::TrapOp::create(builder, getLoc(endLoc));
+        else
+          cir::UnreachableOp::create(builder, getLoc(endLoc));
+      }
     }
     // Don't clear insertion point here - subsequent code may need it.
     // Unreachable dummy blocks will be cleaned up by
